@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Network Security Policy",
+  "description": "Default hardening policy for UniFi home networks",
+  "version": "1.0.0",
+  
+  "wifi": {
+    "require_encryption": {
+      "enabled": true,
+      "severity": "high",
+      "description": "All WiFi networks must use encryption"
+    },
+    "min_wpa_version": {
+      "value": "WPA2",
+      "severity": "high",
+      "description": "Minimum WPA version required (WPA2 or WPA3)"
+    },
+    "recommend_wpa3": {
+      "enabled": true,
+      "severity": "low",
+      "description": "Recommend WPA3 or WPA3 transition mode where supported"
+    },
+    "disallow_open_except": {
+      "allowed_ssids": [],
+      "severity": "high",
+      "description": "Open networks are not allowed except for explicitly listed SSIDs"
+    },
+    "require_client_isolation_for_guest": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Guest networks should have client isolation enabled"
+    },
+    "require_pmf_for_wpa3": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Protected Management Frames should be enabled for WPA3 networks"
+    }
+  },
+  
+  "vlans": {
+    "require_guest_vlan": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "Guest network should be on a separate VLAN"
+    },
+    "require_iot_vlan": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "IoT devices should be segmented to their own VLAN"
+    },
+    "recommended_vlan_ids": {
+      "guest": [100, 200],
+      "iot": [50, 150],
+      "description": "Suggested VLAN IDs for different purposes"
+    }
+  },
+  
+  "firewall": {
+    "block_inter_vlan_by_default": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "VLANs should not communicate unless explicitly allowed"
+    },
+    "flag_allow_all_rules": {
+      "enabled": true,
+      "severity": "high",
+      "description": "Flag overly permissive rules that allow all traffic"
+    },
+    "require_wan_in_rules": {
+      "enabled": true,
+      "severity": "medium",
+      "description": "WAN inbound should have explicit drop rules"
+    },
+    "flag_unnecessary_open_ports": {
+      "enabled": true,
+      "severity": "medium",
+      "ports_of_concern": [21, 23, 25, 110, 135, 139, 445, 1433, 3389],
+      "description": "Flag rules allowing commonly exploited ports from WAN"
+    }
+  },
+  
+  "remote_access": {
+    "upnp_allowed": {
+      "enabled": false,
+      "severity": "high",
+      "description": "UPnP should be disabled on WAN interface"
+    },
+    "nat_pmp_allowed": {
+      "enabled": false,
+      "severity": "high",
+      "description": "NAT-PMP should be disabled"
+    },
+    "ssh_password_auth_allowed": {
+      "enabled": false,
+      "severity": "medium",
+      "description": "SSH password authentication should be disabled (use keys)"
+    },
+    "remote_management_allowed": {
+      "enabled": false,
+      "severity": "medium",
+      "description": "Remote management should be disabled unless required"
+    }
+  },
+  
+  "threat_management": {
+    "require_ids_ips": {
+      "enabled": true,
+      "recommended_mode": "ips",
+      "severity": "medium",
+      "description": "IDS/IPS should be enabled"
+    },
+    "require_dns_filtering": {
+      "enabled": false,
+      "severity": "low",
+      "description": "DNS filtering provides additional protection"
+    }
+  },
+  
+  "firmware": {
+    "flag_outdated_days": {
+      "days": 90,
+      "severity": "medium",
+      "description": "Flag devices with firmware older than specified days"
+    }
+  },
+  
+  "network_scan": {
+    "flag_unexpected_devices": {
+      "enabled": true,
+      "severity": "low",
+      "description": "Flag devices found in scan but not in UniFi inventory"
+    },
+    "flag_open_management_ports": {
+      "enabled": true,
+      "severity": "medium",
+      "ports": [22, 23, 80, 443, 8080, 8443],
+      "description": "Flag devices with management ports open"
+    }
+  }
+}
+

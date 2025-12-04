@@ -1,0 +1,244 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+rem ==== CONFIG ====
+set "JEXIDA_USER=jexida"
+set "JEXIDA_HOST=192.168.1.224"
+set "JEXIDA_MODEL=phi3"
+rem ================
+
+rem Softer color: black background, cyan text
+color 0B
+title JEXIDA // MCP TERMINAL
+
+rem If no args -> interactive REPL
+if "%~1"=="" goto :repl
+
+rem Subcommands (non-REPL)
+if /I "%~1"=="routines" goto :routines_no_repl
+if /I "%~1"=="run" goto :runRoutine_no_repl
+
+rem Otherwise: one-shot prompt, e.g.:
+rem   jexida why is the sky blue
+set "PROMPT_LINE="
+:buildPrompt
+if "%~1"=="" goto :doOneShot
+if defined PROMPT_LINE (
+    set "PROMPT_LINE=%PROMPT_LINE% %~1"
+) else (
+    set "PROMPT_LINE=%~1"
+)
+shift
+goto :buildPrompt
+
+
+:doOneShot
+echo.
+echo +--------------------[ PROMPT ]--------------------+
+echo   %PROMPT_LINE%
+echo +-------------------[ RESPONSE ]-------------------+
+ssh %JEXIDA_USER%@%JEXIDA_HOST% "echo %PROMPT_LINE% | ollama run %JEXIDA_MODEL%"
+set "RC=%ERRORLEVEL%"
+echo +--------------------[ STATUS ]--------------------+
+echo   host : %JEXIDA_HOST%
+echo   model: %JEXIDA_MODEL%
+echo   code : %RC%
+echo +--------------------------------------------------+
+echo.
+goto :eof
+
+
+:repl
+cls
+call :draw_header
+
+echo.
+echo  Type your prompt, or use: /routines  /run name  /cmd cmd  /ssh  /clear  /exit
+echo.
+
+:replLoop
+set "LINE="
+set /p LINE=JEXIDA^[MCP^]^> 
+if not defined LINE goto :replLoop
+
+rem ---- control commands ----
+if /I "%LINE%"=="/exit"  goto :goodbye
+if /I "%LINE%"=="/quit"  goto :goodbye
+
+if /I "%LINE%"=="/clear" (
+    cls
+    call :draw_header
+    echo.
+    goto :replLoop
+)
+
+if /I "%LINE%"=="/routines" (
+    call :routines
+    goto :replLoop
+)
+
+if /I "%LINE%"=="/ssh" (
+    call :open_ssh
+    goto :replLoop
+)
+
+rem /cmd <something>
+if /I "!LINE:~0,4!"=="/cmd" (
+    for /f "tokens=2,*" %%A in ("!LINE!") do (
+        set "REMOTE_LINE=%%A %%B"
+    )
+    call :remote_cmd "%REMOTE_LINE%"
+    goto :replLoop
+)
+
+rem /run <routine>
+if /I "!LINE:~0,4!"=="/run" (
+    for /f "tokens=2*" %%A in ("!LINE!") do (
+        call :runRoutine "%%A"
+    )
+    goto :replLoop
+)
+
+rem ---- normal LLM chat ----
+echo.
+echo +--------------------[ PROMPT ]--------------------+
+echo   !LINE!
+echo +-------------------[ RESPONSE ]-------------------+
+ssh %JEXIDA_USER%@%JEXIDA_HOST% "echo !LINE! | ollama run %JEXIDA_MODEL%"
+set "RC=!ERRORLEVEL!"
+echo +--------------------[ STATUS ]--------------------+
+echo   host : %JEXIDA_HOST%
+echo   model: %JEXIDA_MODEL%
+echo   code : !RC!
+echo +--------------------------------------------------+
+echo.
+goto :replLoop
+
+
+:routines
+echo.
+echo +-------------------[ ROUTINES ]-------------------+
+echo   update_system   - Update and upgrade packages
+echo   docker_list     - List running Docker containers
+echo   restart_ollama  - Restart Ollama service
+echo   test_container  - Run a small Ubuntu container
+echo +--------------------------------------------------+
+echo.
+goto :eof
+
+
+:routines_no_repl
+call :routines
+goto :eof
+
+
+:runRoutine
+set "ROUTINE=%~1"
+echo.
+echo +----------------[ RUNNING ROUTINE ]---------------+
+echo   name : %ROUTINE%
+echo   host : %JEXIDA_HOST%
+echo +--------------------------------------------------+
+echo.
+
+if /I "%ROUTINE%"=="update_system" (
+    ssh %JEXIDA_USER%@%JEXIDA_HOST% "sudo apt update && sudo apt upgrade -y"
+    set "RC=%ERRORLEVEL%"
+    goto :routine_done
+)
+
+if /I "%ROUTINE%"=="docker_list" (
+    ssh %JEXIDA_USER%@%JEXIDA_HOST% "docker ps"
+    set "RC=%ERRORLEVEL%"
+    goto :routine_done
+)
+
+if /I "%ROUTINE%"=="restart_ollama" (
+    ssh %JEXIDA_USER%@%JEXIDA_HOST% "sudo systemctl restart ollama"
+    set "RC=%ERRORLEVEL%"
+    goto :routine_done
+)
+
+if /I "%ROUTINE%"=="test_container" (
+    ssh %JEXIDA_USER%@%JEXIDA_HOST% "docker run --rm ubuntu:22.04 bash -lc ""echo Hello from inside a container & uname -a"""
+    set "RC=%ERRORLEVEL%"
+    goto :routine_done
+)
+
+echo [ERROR] Unknown routine "%ROUTINE%".
+echo.
+goto :eof
+
+:routine_done
+echo.
+echo +--------------------[ STATUS ]--------------------+
+echo   host : %JEXIDA_HOST%
+echo   code : %RC%
+echo +--------------------------------------------------+
+echo.
+goto :eof
+
+
+:runRoutine_no_repl
+if "%~2"=="" (
+    echo Usage: jexida run ROUTINE_NAME
+    goto :eof
+)
+call :runRoutine "%~2"
+goto :eof
+
+
+:remote_cmd
+set "REMOTE_CMD=%~1"
+if "%REMOTE_CMD%"=="" (
+    echo.
+    echo [ERROR] No command given. Usage: /cmd your-command-here
+    echo.
+    goto :eof
+)
+
+echo.
+echo +----------------[ REMOTE COMMAND ]----------------+
+echo   %REMOTE_CMD%
+echo +-------------------[ OUTPUT ]---------------------+
+ssh %JEXIDA_USER%@%JEXIDA_HOST% "%REMOTE_CMD%"
+set "RC=%ERRORLEVEL%"
+echo +--------------------[ STATUS ]--------------------+
+echo   host : %JEXIDA_HOST%
+echo   code : %RC%
+echo +--------------------------------------------------+
+echo.
+goto :eof
+
+
+:open_ssh
+echo.
+echo +--------------------[ SSH MODE ]------------------+
+echo   Connecting to %JEXIDA_USER%@%JEXIDA_HOST%
+echo   Type  exit  to return to the JEXIDA terminal.
+echo +--------------------------------------------------+
+echo.
+ssh %JEXIDA_USER%@%JEXIDA_HOST%
+echo.
+echo +----------------[ SSH SESSION CLOSED ]-----------+
+echo.
+goto :eof
+
+
+:goodbye
+echo.
+echo [JEXIDA] Session closed.
+echo.
+goto :eof
+
+
+:draw_header
+echo  +--------------------------------------------------------------+
+echo  +                        JEXIDA TERMINAL                       +
+echo  +--------------------------------------------------------------+
+echo    user : %JEXIDA_USER%
+echo    host : %JEXIDA_HOST%
+echo    model: %JEXIDA_MODEL%
+echo    cmds : /routines   /run name   /cmd cmd   /ssh   /clear   /exit
+echo  -------------------------------------------------------------- 
+goto :eof

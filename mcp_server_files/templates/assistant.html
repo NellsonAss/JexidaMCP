@@ -1,0 +1,1087 @@
+{% extends "base.html" %}
+
+{% block title %}AI Assistant{% endblock %}
+
+{% block extra_styles %}
+<style>
+    :root {
+        --chat-bg: #1a1a2e;
+        --message-user: #16213e;
+        --message-assistant: #0f3460;
+        --message-system: #e94560;
+        --text-primary: #eee;
+        --text-secondary: #aaa;
+        --accent: #e94560;
+        --border: #333;
+    }
+
+    .assistant-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        background: var(--chat-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .chat-header {
+        padding: 16px 24px;
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header h2 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .chat-header h2::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background: #4ade80;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #4ade80;
+    }
+
+    .chat-header .status {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .chat-header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .model-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .model-selector label {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .model-select {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        cursor: pointer;
+        min-width: 280px;
+        max-width: 350px;
+        transition: all 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+    }
+
+    .model-select:hover {
+        border-color: var(--accent);
+        background-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .model-select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+    }
+
+    .model-select option {
+        background: #1a1a2e;
+        color: var(--text-primary);
+        padding: 8px;
+    }
+
+    .model-select optgroup {
+        background: #16213e;
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-style: normal;
+    }
+
+    .model-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .model-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-flagship {
+        background: linear-gradient(135deg, #f59e0b, #ef4444);
+        color: #000;
+    }
+
+    .badge-premium {
+        background: #8b5cf6;
+        color: white;
+    }
+
+    .badge-standard {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .badge-budget {
+        background: #22c55e;
+        color: #000;
+    }
+
+    /* Temperature Slider */
+    .temp-slider-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .temp-slider-container.hidden {
+        display: none !important;
+    }
+
+    .temp-slider-container label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .temp-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100px;
+        height: 6px;
+        background: linear-gradient(to right, #3b82f6, #f59e0b, #ef4444);
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .temp-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: var(--text-primary);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        transition: transform 0.15s;
+    }
+
+    .temp-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+    }
+
+    .temp-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: var(--text-primary);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .temp-value {
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        font-weight: 600;
+        min-width: 32px;
+        text-align: center;
+        font-family: 'Fira Code', monospace;
+    }
+
+    .temp-label-icon {
+        font-size: 0.9rem;
+    }
+
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .message {
+        max-width: 80%;
+        padding: 14px 18px;
+        border-radius: 16px;
+        line-height: 1.5;
+        position: relative;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message.user {
+        background: var(--message-user);
+        color: var(--text-primary);
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+        background: var(--message-assistant);
+        color: var(--text-primary);
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message.system {
+        background: rgba(233, 69, 96, 0.2);
+        border: 1px solid var(--message-system);
+        color: var(--text-primary);
+        align-self: center;
+        font-size: 0.9rem;
+        max-width: 90%;
+    }
+
+    .message-time {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 6px;
+        opacity: 0.7;
+    }
+
+    .message-content {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .message-content code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Fira Code', 'Monaco', monospace;
+        font-size: 0.9em;
+    }
+
+    .message-content pre {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 12px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 8px 0;
+    }
+
+    .message-content pre code {
+        background: none;
+        padding: 0;
+    }
+
+    .tool-call {
+        background: rgba(74, 222, 128, 0.1);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 8px;
+        font-size: 0.9rem;
+    }
+
+    .tool-call-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #4ade80;
+        font-weight: 500;
+        margin-bottom: 6px;
+    }
+
+    .tool-call-result {
+        color: var(--text-secondary);
+        font-family: 'Fira Code', monospace;
+        font-size: 0.85rem;
+    }
+
+    .confirmation-banner {
+        background: rgba(251, 191, 36, 0.15);
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        border-radius: 8px;
+        padding: 14px;
+        margin-top: 10px;
+    }
+
+    .confirmation-banner p {
+        margin: 0 0 10px 0;
+        color: #fbbf24;
+    }
+
+    .confirmation-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-confirm {
+        background: #4ade80;
+        color: #000;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-confirm:hover {
+        background: #22c55e;
+        transform: translateY(-1px);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        color: #f87171;
+        border: 1px solid #f87171;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: rgba(248, 113, 113, 0.1);
+    }
+
+    .input-container {
+        padding: 16px 24px;
+        background: rgba(255, 255, 255, 0.03);
+        border-top: 1px solid var(--border);
+    }
+
+    .input-wrapper {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+    }
+
+    .input-wrapper textarea {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 18px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        resize: none;
+        min-height: 52px;
+        max-height: 200px;
+        line-height: 1.4;
+        font-family: inherit;
+        transition: all 0.2s;
+    }
+
+    .input-wrapper textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.2);
+    }
+
+    .input-wrapper textarea::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .btn-send {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-send:hover:not(:disabled) {
+        background: #d63d52;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+    }
+
+    .btn-send:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-send svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 14px 18px;
+        background: var(--message-assistant);
+        border-radius: 16px;
+        border-bottom-left-radius: 4px;
+        align-self: flex-start;
+        max-width: 80px;
+    }
+
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: var(--text-secondary);
+        border-radius: 50%;
+        animation: bounce 1.4s ease-in-out infinite;
+    }
+
+    .typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+        0%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-6px);
+        }
+    }
+
+    .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 40px;
+    }
+
+    .empty-state h3 {
+        color: var(--text-primary);
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+
+    .empty-state p {
+        max-width: 400px;
+        line-height: 1.6;
+    }
+
+    .suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+    }
+
+    .suggestion-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        padding: 10px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .suggestion-btn:hover {
+        background: rgba(233, 69, 96, 0.2);
+        border-color: var(--accent);
+    }
+
+    /* Scrollbar styling */
+    .messages-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="assistant-container">
+    <div class="chat-header">
+        <h2>AI Assistant</h2>
+        <div class="chat-header-right">
+            <div class="model-selector">
+                <label for="model-select">Model</label>
+                <select id="model-select" class="model-select" onchange="changeModel(this.value)">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="temp-slider-container hidden" id="temp-container">
+                <label for="temp-slider"><span class="temp-label-icon">🌡️</span> Temp</label>
+                <input type="range" id="temp-slider" class="temp-slider" 
+                       min="0" max="2" step="0.1" value="0.7"
+                       oninput="updateTempDisplay(this.value)">
+                <span class="temp-value" id="temp-value">0.7</span>
+            </div>
+            <span class="status" id="status-text">Ready</span>
+        </div>
+    </div>
+    
+    <div class="messages-container" id="messages">
+        <div class="empty-state" id="empty-state">
+            <h3>How can I help you today?</h3>
+            <p>I can help you manage secrets, query your infrastructure, and perform various operations. Just ask!</p>
+            <div class="suggestions">
+                <button class="suggestion-btn" onclick="sendSuggestion('List all secrets')">List all secrets</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('Show Azure subscriptions')">Show Azure subscriptions</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('Check UniFi devices')">Check UniFi devices</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                id="message-input" 
+                placeholder="Type your message..." 
+                rows="1"
+                onkeydown="handleKeyDown(event)"
+                oninput="autoResize(this)"
+            ></textarea>
+            <button class="btn-send" id="send-btn" onclick="sendMessage()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let conversationId = null;
+    let currentModel = null;
+    let currentTemperature = 0.7;
+    let availableModels = [];
+    
+    const messagesContainer = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const emptyState = document.getElementById('empty-state');
+    const statusText = document.getElementById('status-text');
+    const modelSelect = document.getElementById('model-select');
+    const tempContainer = document.getElementById('temp-container');
+    const tempSlider = document.getElementById('temp-slider');
+    const tempValue = document.getElementById('temp-value');
+
+    function updateTempDisplay(value) {
+        currentTemperature = parseFloat(value);
+        tempValue.textContent = value;
+        
+        // Color code the value
+        if (value <= 0.3) {
+            tempValue.style.color = '#3b82f6'; // Blue - precise
+        } else if (value <= 0.8) {
+            tempValue.style.color = '#f59e0b'; // Orange - balanced
+        } else {
+            tempValue.style.color = '#ef4444'; // Red - creative
+        }
+    }
+
+    // updateTempSliderVisibility is defined in the strategy management section below
+
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+
+    function handleKeyDown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    }
+
+    function formatTime(date) {
+        return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatMessageContent(content) {
+        // Simple markdown-like formatting
+        let formatted = escapeHtml(content);
+        
+        // Code blocks
+        formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+        
+        // Inline code
+        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Bold
+        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        
+        // Italic
+        formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        
+        return formatted;
+    }
+
+    function addMessage(role, content, toolCalls = null, pendingConfirmations = null) {
+        // Hide empty state
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+        
+        let html = `<div class="message-content">${formatMessageContent(content)}</div>`;
+        
+        // Add tool calls if present
+        if (toolCalls && toolCalls.length > 0) {
+            toolCalls.forEach(tc => {
+                html += `
+                    <div class="tool-call">
+                        <div class="tool-call-header">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                            </svg>
+                            ${escapeHtml(tc.action_name || tc.name)}
+                        </div>
+                        <div class="tool-call-result">${tc.success ? '✓ ' : '✗ '} ${escapeHtml(tc.message || '')}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        // Add pending confirmations if present
+        if (pendingConfirmations && pendingConfirmations.length > 0) {
+            pendingConfirmations.forEach(pc => {
+                html += `
+                    <div class="confirmation-banner" data-confirmation-id="${pc.confirmation_id}">
+                        <p>⚠️ ${escapeHtml(pc.message)}</p>
+                        <div class="confirmation-actions">
+                            <button class="btn-confirm" onclick="confirmAction('${pc.confirmation_id}')">Confirm</button>
+                            <button class="btn-cancel" onclick="cancelAction('${pc.confirmation_id}')">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `<div class="message-time">${formatTime(new Date())}</div>`;
+        
+        messageDiv.innerHTML = html;
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'typing-indicator';
+        indicator.id = 'typing-indicator';
+        indicator.innerHTML = '<span></span><span></span><span></span>';
+        messagesContainer.appendChild(indicator);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    function setLoading(loading) {
+        sendBtn.disabled = loading;
+        messageInput.disabled = loading;
+        statusText.textContent = loading ? 'Thinking...' : 'Ready';
+    }
+
+    async function sendMessage() {
+        const content = messageInput.value.trim();
+        if (!content) return;
+
+        // Add user message
+        addMessage('user', content);
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+
+        setLoading(true);
+        addTypingIndicator();
+
+        try {
+            // Build request body
+            const requestBody = {
+                message: content,
+                conversation_id: conversationId,
+                page_context: {
+                    page: 'assistant',
+                    path: window.location.pathname,
+                },
+            };
+            
+            // Include temperature if model supports it
+            const model = availableModels.find(m => m.id === currentModel);
+            if (model && model.supports_temperature) {
+                requestBody.temperature = currentTemperature;
+            }
+            
+            const response = await fetch('/api/assistant/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            removeTypingIndicator();
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            conversationId = data.conversation_id;
+            
+            addMessage(
+                'assistant',
+                data.content,
+                data.tool_calls,
+                data.pending_confirmations
+            );
+
+        } catch (error) {
+            removeTypingIndicator();
+            addMessage('system', `Error: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function confirmAction(confirmationId) {
+        setLoading(true);
+        
+        try {
+            const response = await fetch('/api/assistant/actions/confirm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    confirmation_id: confirmationId,
+                }),
+            });
+
+            const data = await response.json();
+            
+            // Remove the confirmation banner
+            const banner = document.querySelector(`[data-confirmation-id="${confirmationId}"]`);
+            if (banner) {
+                banner.remove();
+            }
+            
+            // Add result message
+            if (data.success) {
+                addMessage('system', `✓ Action completed: ${data.message}`);
+            } else {
+                addMessage('system', `✗ Action failed: ${data.message}`);
+            }
+
+        } catch (error) {
+            addMessage('system', `Error confirming action: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function cancelAction(confirmationId) {
+        try {
+            await fetch(`/api/assistant/actions/${confirmationId}/cancel`, {
+                method: 'POST',
+            });
+            
+            // Remove the confirmation banner
+            const banner = document.querySelector(`[data-confirmation-id="${confirmationId}"]`);
+            if (banner) {
+                banner.innerHTML = '<p style="color: #f87171;">Action cancelled</p>';
+                setTimeout(() => banner.remove(), 2000);
+            }
+
+        } catch (error) {
+            console.error('Error cancelling action:', error);
+        }
+    }
+
+    function sendSuggestion(text) {
+        messageInput.value = text;
+        sendMessage();
+    }
+
+    // Strategy & Model management (Unified Orchestration System)
+    let availableStrategies = [];
+    let currentStrategy = null;
+    
+    async function loadStrategies() {
+        try {
+            const response = await fetch('/api/assistant/strategies');
+            if (!response.ok) throw new Error('Failed to load strategies');
+            
+            const data = await response.json();
+            availableStrategies = data.strategies;
+            currentModel = data.active_strategy_id;
+            
+            // Also set availableModels for compatibility
+            availableModels = availableStrategies.filter(s => s.type === 'single').map(s => ({
+                id: s.id,
+                name: s.display_name,
+                supports_temperature: s.supports_temperature,
+                supports_tools: s.supports_tools,
+                default_temperature: s.supports_temperature ? 0.7 : null,
+                tier: s.tier,
+                source: s.source,
+            }));
+            
+            // Group strategies by their group property
+            const groups = {};
+            const groupOrder = data.groups || [
+                '🔀 Auto / Orchestration',
+                '🚀 GPT-5 Series (Latest)',
+                '🧠 O-Series (Reasoning)',
+                '⭐ GPT-4 Series',
+                '🖥️ Local Models',
+            ];
+            
+            // Initialize groups in order
+            groupOrder.forEach(g => groups[g] = []);
+            
+            availableStrategies.forEach(strategy => {
+                const group = strategy.group || 'Other';
+                if (!groups[group]) groups[group] = [];
+                groups[group].push(strategy);
+            });
+            
+            // Sort within groups by tier
+            const tierOrder = { flagship: 0, premium: 1, standard: 2, budget: 3 };
+            for (const group in groups) {
+                groups[group].sort((a, b) => {
+                    // Cascade strategies first in their group
+                    if (a.strategy_type === 'cascade' && b.strategy_type !== 'cascade') return -1;
+                    if (b.strategy_type === 'cascade' && a.strategy_type !== 'cascade') return 1;
+                    return (tierOrder[a.tier] || 99) - (tierOrder[b.tier] || 99);
+                });
+            }
+            
+            // Build select options
+            let optionsHtml = '';
+            
+            const tierLabels = {
+                'flagship': 'Most Capable',
+                'premium': 'Premium',
+                'standard': 'Balanced',
+                'budget': 'Fast & Cheap'
+            };
+            
+            for (const group of groupOrder) {
+                const strategies = groups[group];
+                if (!strategies || strategies.length === 0) continue;
+                
+                optionsHtml += `<optgroup label="${group}">`;
+                strategies.forEach(strategy => {
+                    const selected = strategy.id === currentModel ? 'selected' : '';
+                    
+                    // Build descriptive info
+                    let info = [];
+                    
+                    // For cascade strategies, show it's an auto strategy
+                    if (strategy.strategy_type === 'cascade') {
+                        info.push('Auto');
+                    } else {
+                        // For single model strategies
+                        if (strategy.tier && tierLabels[strategy.tier]) {
+                            info.push(tierLabels[strategy.tier]);
+                        }
+                        
+                        // Source indicator for local
+                        if (strategy.source === 'local') {
+                            info.push('Local · Free');
+                        }
+                        
+                        // Temperature support
+                        if (strategy.supports_temperature) {
+                            info.push('Temp: ✓');
+                        }
+                        
+                        // Tool support
+                        if (strategy.supports_tools === false) {
+                            info.push('No Tools');
+                        }
+                    }
+                    
+                    const infoStr = info.length > 0 ? ` — ${info.join(' · ')}` : '';
+                    
+                    // Local models are always selectable (will error if not actually installed)
+                    optionsHtml += `<option value="${strategy.id}" ${selected}>${strategy.display_name}${infoStr}</option>`;
+                });
+                optionsHtml += '</optgroup>';
+            }
+            
+            modelSelect.innerHTML = optionsHtml;
+            
+            // Update temperature slider visibility for current strategy
+            updateTempSliderVisibility(currentModel);
+            
+        } catch (error) {
+            console.error('Error loading strategies:', error);
+            modelSelect.innerHTML = '<option value="">Error loading strategies</option>';
+        }
+    }
+    
+    // Alias for backwards compatibility
+    async function loadModels() {
+        return loadStrategies();
+    }
+
+    async function changeModel(strategyId) {
+        if (!strategyId || strategyId === currentModel) return;
+        
+        const previousStrategy = currentModel;
+        setLoading(true);
+        
+        try {
+            const response = await fetch(`/api/assistant/strategies/active?strategy_id=${encodeURIComponent(strategyId)}`, {
+                method: 'POST',
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to change strategy');
+            }
+            
+            const data = await response.json();
+            currentModel = strategyId;
+            currentStrategy = data.strategy;
+            
+            // Update temperature slider visibility
+            updateTempSliderVisibility(strategyId);
+            
+            // Show notification with appropriate emoji for strategy type
+            const emoji = data.strategy.strategy_type === 'cascade' ? '🔀' : '🔄';
+            addMessage('system', `${emoji} ${data.message}`);
+            
+            // Start a new conversation with the new strategy
+            conversationId = null;
+            
+        } catch (error) {
+            console.error('Error changing strategy:', error);
+            addMessage('system', `❌ Failed to change strategy: ${error.message}`);
+            
+            // Revert selection
+            modelSelect.value = previousStrategy;
+            
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function getModelInfo(strategyId) {
+        // First try strategies
+        const strategy = availableStrategies.find(s => s.id === strategyId);
+        if (strategy) {
+            return {
+                id: strategy.id,
+                name: strategy.display_name,
+                supports_temperature: strategy.supports_temperature,
+                supports_tools: strategy.supports_tools,
+                default_temperature: strategy.supports_temperature ? 0.7 : null,
+                tier: strategy.tier,
+                source: strategy.source,
+            };
+        }
+        // Fallback to models for compatibility
+        return availableModels.find(m => m.id === strategyId);
+    }
+    
+    function updateTempSliderVisibility(strategyId) {
+        const strategy = availableStrategies.find(s => s.id === strategyId);
+        
+        // Hide for cascade strategies (multiple models with different temp support)
+        if (strategy && strategy.strategy_type === 'cascade') {
+            tempContainer.classList.add('hidden');
+            return;
+        }
+        
+        // For single model strategies, check if model supports temperature
+        if (strategy && strategy.supports_temperature) {
+            tempContainer.classList.remove('hidden');
+            // Reset to default if model has one
+            tempSlider.value = 0.7;
+            updateTempDisplay(0.7);
+        } else {
+            tempContainer.classList.add('hidden');
+        }
+    }
+
+    // Initialize
+    async function init() {
+        await loadModels();
+        messageInput.focus();
+    }
+    
+    init();
+</script>
+{% endblock %}
+

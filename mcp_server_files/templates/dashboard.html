@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <div>
+        <a href="/secrets/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Add Secret
+        </a>
+    </div>
+</div>
+
+<!-- Secret Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col">
+        <div class="card stat-card">
+            <div class="stat-value">{{ total_secrets }}</div>
+            <div class="stat-label">Total Secrets</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card stat-card azure">
+            <div class="stat-value">{{ secret_counts.azure }}</div>
+            <div class="stat-label">Azure</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card stat-card unifi">
+            <div class="stat-value">{{ secret_counts.unifi }}</div>
+            <div class="stat-label">UniFi</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card stat-card synology">
+            <div class="stat-value">{{ secret_counts.synology }}</div>
+            <div class="stat-label">Synology</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card stat-card generic">
+            <div class="stat-value">{{ secret_counts.generic }}</div>
+            <div class="stat-label">Generic</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/secrets/new?service_type=azure" class="btn btn-outline-primary">
+                        <i class="bi bi-cloud me-2"></i>Add Azure Credentials
+                    </a>
+                    <a href="/secrets/new?service_type=unifi" class="btn btn-outline-primary">
+                        <i class="bi bi-router me-2"></i>Add UniFi Credentials
+                    </a>
+                    <a href="/secrets/new?service_type=synology" class="btn btn-outline-primary">
+                        <i class="bi bi-hdd-stack me-2"></i>Add Synology Credentials
+                    </a>
+                    <a href="/monitoring" class="btn btn-outline-primary">
+                        <i class="bi bi-graph-up me-2"></i>View Monitoring
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-heart-pulse me-2"></i>System Status
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>MCP Server</span>
+                    <span class="badge bg-success">
+                        <i class="bi bi-check-circle me-1"></i>Online
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Database</span>
+                    <span class="badge bg-success">
+                        <i class="bi bi-check-circle me-1"></i>Connected
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Encryption</span>
+                    <span class="badge bg-success">
+                        <i class="bi bi-shield-check me-1"></i>Active
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Available Tools -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-tools me-2"></i>Available MCP Tools</span>
+        <a href="/docs" class="btn btn-sm btn-outline-primary" target="_blank">
+            <i class="bi bi-file-code me-1"></i>API Docs
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+                    <h6 class="text-primary mb-2">
+                        <i class="bi bi-cloud me-2"></i>Azure Tools
+                    </h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><code>azure_cli.run</code> - Execute CLI commands</li>
+                        <li><code>azure_cost_get_summary</code> - Cost summaries</li>
+                        <li><code>http_health_probe</code> - Health checks</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+                    <h6 class="text-info mb-2">
+                        <i class="bi bi-router me-2"></i>UniFi Tools
+                    </h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><code>unifi_list_devices</code> - List devices</li>
+                        <li><code>unifi_get_security_settings</code> - Security config</li>
+                        <li><code>unifi_apply_changes</code> - Apply changes</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+                    <h6 class="text-success mb-2">
+                        <i class="bi bi-hdd-stack me-2"></i>Synology Tools
+                    </h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><code>synology_list_files</code> - File Station</li>
+                        <li><code>synology_get_system_info</code> - System info</li>
+                        <li><code>synology_list_downloads</code> - Downloads</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+                    <h6 class="text-warning mb-2">
+                        <i class="bi bi-shield-check me-2"></i>Network Tools
+                    </h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><code>network_scan_local</code> - Scan network</li>
+                        <li><code>network_hardening_audit</code> - Security audit</li>
+                        <li><code>network_apply_hardening_plan</code> - Apply fixes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
