@@ -40,3 +40,6 @@
 +        """Auth middleware - temporarily disabled."""
          return await call_next(request)
 
+
+
+

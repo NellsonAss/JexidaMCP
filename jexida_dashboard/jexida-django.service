@@ -8,6 +8,7 @@ User=jexida
 Group=jexida
 WorkingDirectory=/opt/jexida-mcp/jexida_dashboard
 Environment=PATH=/opt/jexida-mcp/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONPATH=/opt/jexida-mcp
 EnvironmentFile=/opt/jexida-mcp/.env
 ExecStart=/opt/jexida-mcp/venv/bin/gunicorn jexida_dashboard.wsgi:application --bind 0.0.0.0:8080 --workers 3 --timeout 120
 Restart=always

@@ -90,3 +90,6 @@ Once the container is running:
 2. Run migrations: `python3 migrate_secrets.py`
 3. Develop normally - everything should work better!
 
+
+
+

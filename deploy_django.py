@@ -3,9 +3,9 @@
 Deploy Django dashboard to remote MCP server.
 
 This script:
-1. Pushes code to GitHub
-2. SSH to server and pulls latest code
-3. Installs dependencies
+1. Copies Django project files via SCP
+2. Copies core services via SCP
+3. Installs dependencies on server
 4. Runs Django migrations
 5. Collects static files
 6. Updates systemd service to run Django
@@ -13,6 +13,7 @@ This script:
 """
 import sys
 import subprocess
+import os
 from pathlib import Path
 
 # Add current directory to path
@@ -26,11 +27,17 @@ APP_DIR = "/opt/jexida-mcp"
 DJANGO_DIR = f"{APP_DIR}/jexida_dashboard"
 SERVICE_NAME = "jexida-mcp.service"
 
+# Directories to sync
+SYNC_DIRS = [
+    ("jexida_dashboard", f"{APP_DIR}/jexida_dashboard"),
+    ("core", f"{APP_DIR}/core"),
+]
 
-def run_local_command(command: list) -> tuple:
+
+def run_local_command(command: list, **kwargs) -> tuple:
     """Run a local command and return (stdout, stderr, exit_code)."""
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=300, **kwargs)
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
         return "", "Command timed out", 124
@@ -44,47 +51,59 @@ def run_ssh_command(command: str) -> tuple:
     return client.execute_command(command)
 
 
+def rsync_dir(local_dir: str, remote_path: str) -> bool:
+    """Sync a directory to the remote server using rsync or scp."""
+    local_path = Path(local_dir)
+    if not local_path.exists():
+        print(f"   ✗ Local directory not found: {local_dir}")
+        return False
+    
+    # Try rsync first (more efficient), fall back to scp
+    rsync_cmd = [
+        "rsync", "-avz", "--delete",
+        "--exclude", "__pycache__",
+        "--exclude", "*.pyc",
+        "--exclude", ".git",
+        "--exclude", "db.sqlite3",
+        "--exclude", "staticfiles",
+        f"{local_dir}/",
+        f"{USER}@{HOST}:{remote_path}/"
+    ]
+    
+    result = subprocess.run(rsync_cmd, capture_output=True, text=True, timeout=120)
+    if result.returncode == 0:
+        return True
+    
+    # Fallback to scp -r
+    print(f"   ⚠ rsync failed, trying scp...")
+    scp_cmd = ["scp", "-r", str(local_path), f"{USER}@{HOST}:{remote_path}"]
+    result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=120)
+    return result.returncode == 0
+
+
 def main():
     print("=" * 60)
     print("Deploying Django Dashboard to MCP Server")
     print("=" * 60)
 
-    # Step 1: Push to GitHub
-    print("\n1. Pushing code to GitHub...")
-    
-    # Add all files
-    stdout, stderr, exit_code = run_local_command(["git", "add", "-A"])
-    if exit_code != 0:
-        print(f"   ⚠ git add warning: {stderr}")
-    
-    # Commit (may fail if nothing to commit)
-    stdout, stderr, exit_code = run_local_command(
-        ["git", "commit", "-m", "Deploy Django dashboard migration"]
-    )
-    if exit_code == 0:
-        print("   ✓ Changes committed")
-    else:
-        print(f"   ⚠ Commit: {stdout.strip() or stderr.strip()}")
-    
-    # Push
-    stdout, stderr, exit_code = run_local_command(["git", "push", "origin", "HEAD"])
-    if exit_code == 0:
-        print("   ✓ Pushed to GitHub")
-    else:
-        print(f"   ✗ Push failed: {stderr}")
-        return 1
+    # Step 1: Create remote directories
+    print("\n1. Creating remote directories...")
+    for local_dir, remote_path in SYNC_DIRS:
+        stdout, stderr, exit_code = run_ssh_command(f"mkdir -p {remote_path}")
+        if exit_code != 0:
+            print(f"   ✗ Failed to create {remote_path}: {stderr}")
+            return 1
+    print("   ✓ Remote directories ready")
 
-    # Step 2: Pull on remote server
-    print(f"\n2. Pulling latest code on server ({HOST})...")
-    stdout, stderr, exit_code = run_ssh_command(f"cd {APP_DIR} && git pull origin HEAD")
-    if exit_code == 0:
-        print(f"   ✓ Code pulled")
-        if stdout.strip():
-            for line in stdout.strip().split('\n')[:5]:
-                print(f"      {line}")
-    else:
-        print(f"   ✗ Git pull failed: {stderr}")
-        return 1
+    # Step 2: Sync directories to remote
+    print("\n2. Syncing project files to server...")
+    for local_dir, remote_path in SYNC_DIRS:
+        print(f"   Syncing {local_dir} -> {remote_path}...")
+        if rsync_dir(local_dir, remote_path):
+            print(f"   ✓ {local_dir} synced")
+        else:
+            print(f"   ✗ Failed to sync {local_dir}")
+            return 1
 
     # Step 3: Install Python dependencies (including Django, gunicorn)
     print("\n3. Installing Python dependencies...")
@@ -103,8 +122,9 @@ pip install django gunicorn python-dotenv dj-database-url cryptography
     # Step 4: Run Django migrations
     print("\n4. Running Django migrations...")
     migrate_cmd = f"""
-cd {DJANGO_DIR} && 
-source {APP_DIR}/venv/bin/activate && 
+cd {DJANGO_DIR} &&
+source {APP_DIR}/venv/bin/activate &&
+export PYTHONPATH={APP_DIR}:$PYTHONPATH &&
 python manage.py migrate --noinput
 """
     stdout, stderr, exit_code = run_ssh_command(migrate_cmd)
@@ -121,8 +141,9 @@ python manage.py migrate --noinput
     # Step 5: Collect static files
     print("\n5. Collecting static files...")
     static_cmd = f"""
-cd {DJANGO_DIR} && 
-source {APP_DIR}/venv/bin/activate && 
+cd {DJANGO_DIR} &&
+source {APP_DIR}/venv/bin/activate &&
+export PYTHONPATH={APP_DIR}:$PYTHONPATH &&
 python manage.py collectstatic --noinput
 """
     stdout, stderr, exit_code = run_ssh_command(static_cmd)
@@ -135,9 +156,10 @@ python manage.py collectstatic --noinput
     print("\n6. Updating systemd service for Django...")
     
     # Copy new service file
+    service_file = Path(__file__).parent / "jexida_dashboard" / "jexida-django.service"
     scp_cmd = [
         "scp",
-        "jexida_dashboard/jexida-django.service",
+        str(service_file),
         f"{USER}@{HOST}:/tmp/jexida-django.service"
     ]
     result = subprocess.run(scp_cmd, capture_output=True, text=True)

@@ -1,12 +1,11 @@
 ﻿{
   "mcpServers": {
     "jexida-mcp": {
-      "command": "python",
-      "args": ["mcp_server_files/mcp_server.py"],
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}/mcp_server_files"
-      }
+      "command": "ssh",
+      "args": [
+        "jexida@192.168.1.224",
+        "cd /opt/jexida-mcp && /opt/jexida-mcp/venv/bin/python mcp_server.py"
+      ]
     }
   }
 }

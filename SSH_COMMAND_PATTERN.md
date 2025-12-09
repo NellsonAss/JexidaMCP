@@ -110,3 +110,6 @@ The script ALWAYS writes a JSON file with this structure:
 
 For these cases, ask the user to run the command manually and paste the results.
 
+
+
+
