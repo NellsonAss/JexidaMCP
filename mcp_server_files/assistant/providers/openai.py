@@ -35,9 +35,9 @@ class OpenAIProvider(BaseProvider):
     
     def __init__(self):
         """Initialize the OpenAI provider."""
-        self._api_key = os.environ.get("OPENAI_API_KEY")
+        self._api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         self._model = os.environ.get("OPENAI_MODEL", "gpt-4")
-        self._org_id = os.environ.get("OPENAI_ORG_ID")
+        self._org_id = os.environ.get("OPENAI_ORG_ID", "").strip() if os.environ.get("OPENAI_ORG_ID") else None
         self._client = None
     
     def _get_client(self):

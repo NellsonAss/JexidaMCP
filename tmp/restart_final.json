@@ -1,0 +1,11 @@
+{
+  "host": "192.168.1.224",
+  "user": "jexida",
+  "command": "sudo systemctl restart jexida-mcp.service",
+  "success": true,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "error": null,
+  "traceback": null
+}

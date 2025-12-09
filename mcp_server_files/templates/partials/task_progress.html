@@ -1,0 +1,63 @@
+{# Task Progress Tree Node - HTMX Partial #}
+{# 
+  This partial renders a single task node in the progress tree.
+  It uses <details>/<summary> for expand/collapse behavior.
+  
+  Variables:
+    - task: TaskProgress dict with id, title, status, summary, parent_id, children
+    - is_update: Boolean - true if updating existing node (uses hx-swap-oob)
+#}
+
+{% macro task_node(task, is_update=False) %}
+<details 
+    class="task-node task-{{ task.status }}"
+    id="task-{{ task.id }}"
+    data-task-id="{{ task.id }}"
+    data-parent-id="{{ task.parent_id or '' }}"
+    data-status="{{ task.status }}"
+    {% if task.status == 'running' or task.status == 'pending' %}open{% endif %}
+    {% if is_update %}hx-swap-oob="true"{% endif %}
+>
+    <summary class="task-header">
+        <span class="task-status-icon">
+            {% if task.status == 'running' %}
+            <span class="task-spinner"></span>
+            {% elif task.status == 'pending' %}
+            <i class="bi bi-hourglass-split"></i>
+            {% elif task.status == 'done' %}
+            <i class="bi bi-check-circle-fill text-success"></i>
+            {% elif task.status == 'error' %}
+            <i class="bi bi-x-circle-fill text-danger"></i>
+            {% endif %}
+        </span>
+        <span class="task-title">{{ task.title }}</span>
+        {% if task.status == 'done' and task.summary %}
+        <span class="task-summary">{{ task.summary }}</span>
+        {% endif %}
+        {% if task.metadata and task.metadata.duration_ms %}
+        <span class="task-duration">{{ task.metadata.duration_ms }}ms</span>
+        {% endif %}
+    </summary>
+    
+    <div class="task-content">
+        {% if task.detail %}
+        <div class="task-detail">{{ task.detail }}</div>
+        {% endif %}
+        
+        {# Container for child tasks #}
+        <div class="task-children" id="task-{{ task.id }}-children">
+            {% if task.children %}
+                {% for child in task.children %}
+                    {{ task_node(child) }}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</details>
+{% endmacro %}
+
+{# Render the task if passed directly #}
+{% if task %}
+    {{ task_node(task, is_update|default(false)) }}
+{% endif %}
+

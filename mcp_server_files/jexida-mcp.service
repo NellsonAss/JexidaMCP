@@ -1,0 +1,33 @@
+[Unit]
+Description=JexidaMCP Server - Network Management Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=jexida
+Group=jexida
+WorkingDirectory=/opt/jexida-mcp
+Environment=PATH=/opt/jexida-mcp/venv/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/opt/jexida-mcp/.env
+ExecStart=/opt/jexida-mcp/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jexida-mcp
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jexida-mcp
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+

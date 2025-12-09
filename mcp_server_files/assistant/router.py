@@ -2,6 +2,7 @@
 
 Provides:
 - Chat endpoint for sending messages
+- Streaming chat endpoint with real-time progress (SSE)
 - Conversation management endpoints
 - Action confirmation endpoints
 - Status endpoint
@@ -11,7 +12,8 @@ import sys
 import os
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 # Add parent directory to path for imports
@@ -32,13 +34,16 @@ from .schemas import (
     UpdateConversationRequest,
     AssistantStatus,
     ConversationMode,
+    StreamChatRequest,
 )
 from .services import (
     process_user_message,
+    process_user_message_streaming,
     confirm_pending_action,
     cancel_pending_action,
     get_assistant_status,
 )
+from .progress import ProgressEmitter
 from .models import (
     Conversation,
     Message,
@@ -126,6 +131,79 @@ async def send_message(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process message: {str(e)}"
+        )
+
+
+@router.post("/chat/stream")
+async def send_message_stream(
+    request: StreamChatRequest,
+    db: Session = Depends(get_db),
+):
+    """Process a user message with streaming progress updates via SSE.
+    
+    Returns Server-Sent Events with real-time task progress.
+    
+    Event types:
+    - task.start: New task begins (UI auto-expands)
+    - task.update: Progress update (e.g., "thinking...")
+    - task.done: Task completed (UI auto-collapses to summary)
+    - task.error: Task failed
+    - message.chunk: Streaming text content
+    - done: Full response complete
+    
+    Args:
+        request: Stream chat request with message and optional context
+        db: Database session
+        
+    Returns:
+        StreamingResponse with text/event-stream content type
+    """
+    try:
+        # Convert mode to DB enum if provided
+        mode = None
+        if request.mode:
+            mode = DBConversationMode(request.mode.value)
+        
+        # Create progress emitter
+        emitter = ProgressEmitter()
+        
+        async def generate():
+            """Generate SSE events from the progress emitter."""
+            try:
+                async for event in process_user_message_streaming(
+                    content=request.message,
+                    conversation_id=request.conversation_id,
+                    user_id=None,  # TODO: Get from authentication
+                    user_roles=None,  # TODO: Get from authentication
+                    page_context=request.page_context,
+                    mode=mode,
+                    temperature=request.temperature,
+                    db_session=db,
+                    progress_emitter=emitter,
+                ):
+                    yield event
+            except Exception as e:
+                logger.error(f"Streaming error: {e}", exc_info=True)
+                # Emit error event
+                import json
+                error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                yield error_event
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
+            }
+        )
+    
+    except Exception as e:
+        logger.error(f"Stream setup failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to setup stream: {str(e)}"
         )
 
 

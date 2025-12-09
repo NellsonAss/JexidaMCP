@@ -2,11 +2,14 @@
 
 Provides generic model_query, model_create, model_update, and model_delete
 actions that work with any SQLAlchemy model.
+
+Includes model-level validation to ensure all required model fields are
+provided before confirmation is requested.
 """
 
 import sys
 import os
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Set, Type
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -127,6 +130,204 @@ def get_ownership_field(model: Type) -> Optional[str]:
     
     except Exception:
         return None
+
+
+def get_required_model_fields(model: Type, operation: str = "create") -> Set[str]:
+    """Get required fields for a SQLAlchemy model.
+    
+    A field is required if:
+    - It has nullable=False
+    - It has no default value
+    - It's not auto-generated (id, created_at, updated_at)
+    
+    Args:
+        model: SQLAlchemy model class
+        operation: Operation type ('create' or 'update')
+        
+    Returns:
+        Set of required field names
+    """
+    try:
+        from sqlalchemy import inspect
+        
+        required = set()
+        auto_exclude = {"id", "created_at", "updated_at"}
+        
+        mapper = inspect(model)
+        
+        for column in mapper.columns:
+            # Skip auto-generated fields
+            if column.name in auto_exclude:
+                continue
+            
+            # Skip ownership fields (auto-assigned)
+            if column.name in OWNERSHIP_FIELDS:
+                continue
+            
+            # Check if field is required
+            is_nullable = column.nullable if column.nullable is not None else True
+            has_default = column.default is not None or column.server_default is not None
+            
+            if not is_nullable and not has_default:
+                required.add(column.name)
+        
+        return required
+    
+    except Exception as e:
+        logger.warning(f"Could not get required fields for model: {e}")
+        return set()
+
+
+def validate_model_fields(
+    model: Type,
+    field_data: Dict[str, Any],
+    operation: str = "create",
+) -> tuple:
+    """Validate that all required model fields are provided.
+    
+    Args:
+        model: SQLAlchemy model class
+        field_data: Field values provided
+        operation: Operation type ('create' or 'update')
+        
+    Returns:
+        Tuple of (is_valid, missing_fields, field_descriptions)
+    """
+    required_fields = get_required_model_fields(model, operation)
+    
+    missing = []
+    for field_name in required_fields:
+        value = field_data.get(field_name)
+        if value is None or (isinstance(value, str) and value.strip() == ""):
+            missing.append(field_name)
+    
+    # Get field descriptions from model docstrings or column comments
+    field_descriptions = {}
+    try:
+        from sqlalchemy import inspect
+        mapper = inspect(model)
+        for column in mapper.columns:
+            if column.name in missing:
+                # Try to get description from column comment or doc
+                desc = getattr(column, "comment", None) or column.name
+                field_descriptions[column.name] = desc
+    except Exception:
+        pass
+    
+    return len(missing) == 0, missing, field_descriptions
+
+
+# Pre-validation functions for dynamic model actions
+# These are called before confirmation to ensure all required fields are present
+
+def pre_validate_model_create(params: Dict[str, Any]) -> tuple:
+    """Pre-validate model_create parameters including model-specific fields.
+    
+    Args:
+        params: Action parameters with model_name and data
+        
+    Returns:
+        Tuple of (is_valid, error_message, error_data)
+    """
+    model_name = params.get("model_name")
+    field_data = params.get("data", {})
+    
+    if not model_name:
+        return False, "model_name is required", {"missing_fields": ["model_name"]}
+    
+    model = get_model_by_name(model_name)
+    if model is None:
+        return False, f"Model '{model_name}' not found", {"error": "model_not_found"}
+    
+    # Validate model-specific required fields
+    is_valid, missing, descriptions = validate_model_fields(model, field_data, "create")
+    
+    if not is_valid:
+        # Format helpful error message
+        field_list = []
+        for field_name in missing:
+            desc = descriptions.get(field_name, field_name)
+            field_list.append(f"- `{field_name}`: {desc}")
+        
+        error_msg = (
+            f"Cannot create {model_name}: missing required fields in data:\n" +
+            "\n".join(field_list)
+        )
+        
+        return False, error_msg, {
+            "missing_fields": missing,
+            "model_name": model_name,
+            "hint": f"Please provide values for: {', '.join(missing)}"
+        }
+    
+    return True, "", {}
+
+
+def pre_validate_model_update(params: Dict[str, Any]) -> tuple:
+    """Pre-validate model_update parameters.
+    
+    Args:
+        params: Action parameters with model_name, id, and data
+        
+    Returns:
+        Tuple of (is_valid, error_message, error_data)
+    """
+    model_name = params.get("model_name")
+    record_id = params.get("id")
+    field_data = params.get("data", {})
+    
+    if not model_name:
+        return False, "model_name is required", {"missing_fields": ["model_name"]}
+    
+    if record_id is None:
+        return False, "id is required for update", {"missing_fields": ["id"]}
+    
+    model = get_model_by_name(model_name)
+    if model is None:
+        return False, f"Model '{model_name}' not found", {"error": "model_not_found"}
+    
+    # For update, we don't require all model fields, just check data isn't empty
+    if not field_data:
+        return False, "data is required with at least one field to update", {
+            "missing_fields": ["data"],
+            "hint": "Provide the fields you want to update in the data object"
+        }
+    
+    # Filter to valid fields
+    valid_fields, invalid_fields = filter_valid_fields(model, field_data, "update")
+    
+    if not valid_fields:
+        return False, f"No valid fields to update. Invalid fields: {', '.join(invalid_fields)}", {
+            "invalid_fields": invalid_fields,
+            "hint": "Check the field names and try again"
+        }
+    
+    return True, "", {}
+
+
+def pre_validate_model_delete(params: Dict[str, Any]) -> tuple:
+    """Pre-validate model_delete parameters.
+    
+    Args:
+        params: Action parameters with model_name and id
+        
+    Returns:
+        Tuple of (is_valid, error_message, error_data)
+    """
+    model_name = params.get("model_name")
+    record_id = params.get("id")
+    
+    if not model_name:
+        return False, "model_name is required", {"missing_fields": ["model_name"]}
+    
+    if record_id is None:
+        return False, "id is required for delete", {"missing_fields": ["id"]}
+    
+    model = get_model_by_name(model_name)
+    if model is None:
+        return False, f"Model '{model_name}' not found", {"error": "model_not_found"}
+    
+    return True, "", {}
 
 
 def get_model_by_name(model_name: str) -> Optional[Type]:
@@ -579,6 +780,7 @@ def register_dynamic_actions() -> None:
     ))
     
     # model_create action
+    # Uses pre_validate_fn to check model-specific required fields before confirmation
     registry.register(ActionDefinition(
         name="model_create",
         display_name="Create Record",
@@ -600,10 +802,12 @@ def register_dynamic_actions() -> None:
         },
         execute_fn=execute_model_create,
         requires_confirmation=True,
+        pre_validate_fn=pre_validate_model_create,
         tags=["data", "create"],
     ))
     
     # model_update action
+    # Uses pre_validate_fn to verify fields before confirmation
     registry.register(ActionDefinition(
         name="model_update",
         display_name="Update Record",
@@ -629,10 +833,12 @@ def register_dynamic_actions() -> None:
         },
         execute_fn=execute_model_update,
         requires_confirmation=True,
+        pre_validate_fn=pre_validate_model_update,
         tags=["data", "update"],
     ))
     
     # model_delete action
+    # Uses pre_validate_fn to verify model and id before confirmation
     registry.register(ActionDefinition(
         name="model_delete",
         display_name="Delete Record",
@@ -654,6 +860,7 @@ def register_dynamic_actions() -> None:
         },
         execute_fn=execute_model_delete,
         requires_confirmation=True,
+        pre_validate_fn=pre_validate_model_delete,
         is_destructive=True,
         tags=["data", "delete"],
     ))

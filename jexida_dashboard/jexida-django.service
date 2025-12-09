@@ -1,0 +1,30 @@
+[Unit]
+Description=JexidaMCP Django Dashboard - Network Management Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=jexida
+Group=jexida
+WorkingDirectory=/opt/jexida-mcp/jexida_dashboard
+Environment=PATH=/opt/jexida-mcp/venv/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/opt/jexida-mcp/.env
+ExecStart=/opt/jexida-mcp/venv/bin/gunicorn jexida_dashboard.wsgi:application --bind 0.0.0.0:8080 --workers 3 --timeout 120
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jexida-mcp
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jexida-django
+
+[Install]
+WantedBy=multi-user.target
+

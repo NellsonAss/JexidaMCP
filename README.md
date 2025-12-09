@@ -20,6 +20,22 @@ A terminal agent CLI that connects to a remote MCP server via SSH, uses Ollama +
 - SSH client installed and configured (OpenSSH on Windows 10+)
 - Access to remote server with Ollama installed
 
+### Development Environment Options
+
+**Option 1: Dev Container (Recommended for Windows)**
+- Resolves terminal output capture issues
+- Consistent Linux environment
+- See `.devcontainer/README.md` for setup
+
+**Option 2: WSL2**
+- Install WSL2 and Ubuntu from Microsoft Store
+- Open project in WSL: `code .` from WSL terminal
+- Resolves PowerShell output capture issues
+
+**Option 3: Native Windows**
+- Works but terminal output may not be visible
+- Use JSON output pattern (see `SSH_COMMAND_PATTERN.md`)
+
 ### Install from Source
 
 1. Clone or navigate to this repository:
@@ -199,6 +215,20 @@ The project uses Black for formatting (line length: 100).
 - `rich` - Terminal UI and formatting
 - `typer` - CLI framework
 - `toml` - Configuration file parsing
+
+## SSH Command Execution Pattern
+
+**In devcontainers/Linux:** SSH commands work directly - output is captured automatically. You can use standard SSH syntax:
+```bash
+ssh jexida@192.168.1.224 "ls -la /opt"
+```
+
+**In Windows PowerShell:** Use the `get_ssh_output.py` helper script which writes structured JSON output. See [SSH_COMMAND_PATTERN.md](SSH_COMMAND_PATTERN.md) for details.
+
+Quick example:
+```bash
+python3 get_ssh_output.py 192.168.1.224 jexida "ls -la /opt" result.json
+```
 
 ## Troubleshooting
 

@@ -165,3 +165,25 @@ class AssistantStatus(BaseModel):
     model: str = Field(..., description="Default model being used")
     available_actions: int = Field(..., description="Number of available actions")
 
+
+class StreamChatRequest(BaseModel):
+    """Request for streaming chat with progress updates."""
+    message: str = Field(..., description="User message content")
+    conversation_id: Optional[int] = Field(
+        None,
+        description="Existing conversation ID (creates new if not provided)"
+    )
+    page_context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Context about current page/view"
+    )
+    mode: Optional[ConversationMode] = Field(
+        None,
+        description="Conversation mode"
+    )
+    temperature: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature (0.0-2.0). Only used if model supports it."
+    )

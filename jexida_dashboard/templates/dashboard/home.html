@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <p class="text-muted">System overview and monitoring</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card azure">
+            <div class="stat-value">{{ secret_counts.azure }}</div>
+            <div class="stat-label">Azure Secrets</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card unifi">
+            <div class="stat-value">{{ secret_counts.unifi }}</div>
+            <div class="stat-label">UniFi Secrets</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card synology">
+            <div class="stat-value">{{ secret_counts.synology }}</div>
+            <div class="stat-label">Synology Secrets</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card generic">
+            <div class="stat-value">{{ secret_counts.generic }}</div>
+            <div class="stat-label">Generic Secrets</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'secrets:create' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Add New Secret
+                    </a>
+                    <a href="{% url 'assistant:chat' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-robot me-2"></i>Open AI Assistant
+                    </a>
+                    <a href="{% url 'dashboard:monitoring' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-graph-up me-2"></i>View Monitoring
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-activity me-2"></i>System Status
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2">
+                        <i class="bi bi-check-circle"></i>
+                    </span>
+                    <span>System is healthy</span>
+                </div>
+                <div class="text-muted small">
+                    <p class="mb-1"><strong>Total Secrets:</strong> {{ total_secrets }}</p>
+                    <p class="mb-0"><strong>Dashboard Version:</strong> 0.1.0 (Django)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monitoring Data -->
+{% if monitoring_data %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-bar-chart me-2"></i>Monitoring Overview
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Monitoring data will appear here when systems are configured.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

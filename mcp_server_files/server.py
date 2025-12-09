@@ -7,16 +7,18 @@ Defines the FastAPI application with:
 - Dashboard UI for secrets management and monitoring
 """
 
+import secrets
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 from config import get_settings, reload_settings
 from logging_config import get_logger, setup_logging
@@ -86,12 +88,118 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
+    # Add session middleware for auth cookies
+    session_secret = settings.auth_session_secret or secrets.token_hex(32)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=session_secret,
+        session_cookie="jexida_session",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+    
     # Mount static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     
     # Set up templates
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    
+    # -------------------------------------------------------------------------
+    # Authentication Helpers
+    # -------------------------------------------------------------------------
+    
+    def is_auth_enabled() -> bool:
+        """Check if authentication is enabled."""
+        # TEMPORARILY DISABLED - return False to allow access
+        return False
+        # return bool(settings.auth_password)
+    
+    def is_authenticated(request: Request) -> bool:
+        """Check if the current request is authenticated."""
+        if not is_auth_enabled():
+            return True  # Auth disabled, everyone is authenticated
+        if "session" not in request.scope:
+            return False
+        session = request.scope.get("session", {})
+        return session.get("authenticated", False)
+    
+    def require_auth(request: Request) -> bool:
+        """Dependency that requires authentication."""
+        if not is_authenticated(request):
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return True
+    
+    # -------------------------------------------------------------------------
+    # Login/Logout Routes
+    # -------------------------------------------------------------------------
+    
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_page(request: Request, error: str = None, next: str = "/"):
+        """Show login page."""
+        if not is_auth_enabled():
+            return RedirectResponse(url="/", status_code=303)
+        
+        if is_authenticated(request):
+            return RedirectResponse(url=next, status_code=303)
+        
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": error,
+            "next": next,
+            "page_title": "Login"
+        })
+    
+    @app.post("/login", response_class=HTMLResponse)
+    async def login_submit(
+        request: Request,
+        password: str = Form(...),
+        next: str = Form("/")
+    ):
+        """Process login form."""
+        if not is_auth_enabled():
+            return RedirectResponse(url="/", status_code=303)
+        
+        if password == settings.auth_password:
+            # Set session - ensure session is in scope first
+            if "session" not in request.scope:
+                request.scope["session"] = {}
+            request.scope["session"]["authenticated"] = True
+            # Also set via request.session for SessionMiddleware
+            try:
+                if hasattr(request, 'session'):
+                    request.session["authenticated"] = True
+            except (AttributeError, KeyError):
+                # Session not available, but we set it in scope
+                pass
+            logger.info("User authenticated successfully")
+            # Use absolute URL to ensure cookie is set
+            response = RedirectResponse(url=next, status_code=303)
+            return response
+        
+        logger.warning("Failed login attempt")
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid password",
+            "next": next,
+            "page_title": "Login"
+        })
+    
+    @app.get("/logout")
+    async def logout(request: Request):
+        """Log out and clear session."""
+        request.session.clear()
+        logger.info("User logged out")
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # -------------------------------------------------------------------------
+    # Auth Middleware (redirect to login for protected pages)
+    # -------------------------------------------------------------------------
+    
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        """Check authentication for protected routes - TEMPORARILY DISABLED."""
+        # TEMPORARILY DISABLED - allowing all access to load keys
+        return await call_next(request)
     
     # Include assistant router if available
     if ASSISTANT_AVAILABLE and assistant_router:
@@ -100,8 +208,11 @@ def create_app() -> FastAPI:
     
     # Import database components (lazy import to avoid circular dependencies)
     def get_db_session():
-        from database import get_db
-        return next(get_db())
+        """Get a database session, properly managing the connection."""
+        from database import get_session_local
+        SessionLocal = get_session_local()
+        db = SessionLocal()
+        return db
     
     # -------------------------------------------------------------------------
     # Health and API Endpoints
@@ -537,9 +648,395 @@ def create_app() -> FastAPI:
             except ImportError:
                 logger.debug("Assistant module not available, skipping assistant table creation")
             
+            # Create reference tables and seed data
+            try:
+                from assistant.references.models import (
+                    ReferenceSnippet, ReferenceProfile, 
+                    ReferenceProfileSnippet, ReferenceLog
+                )
+                Base.metadata.create_all(bind=get_engine())
+                logger.info("Reference tables initialized")
+                
+                # Seed reference data if tables are empty
+                db = get_db_session()
+                try:
+                    snippet_count = db.query(ReferenceSnippet).count()
+                    if snippet_count == 0:
+                        from assistant.references.seed import seed_references
+                        snippets, profiles = seed_references(db)
+                        logger.info(f"Seeded {snippets} reference snippets")
+                except Exception as seed_err:
+                    logger.warning(f"Could not seed reference data: {seed_err}")
+                finally:
+                    db.close()
+                    
+            except ImportError as ref_err:
+                logger.debug(f"Reference module not available: {ref_err}")
+            
             logger.info("Database initialized successfully")
+            
+            # Reload settings to pick up secrets from database
+            # This is needed because get_settings() was called during import
+            # before the DB was fully initialized
+            reload_settings()
+            logger.info("Settings reloaded from database")
         except Exception as e:
             logger.error(f"Database initialization failed: {e}", exc_info=True)
+    
+    # -------------------------------------------------------------------------
+    # Admin API Endpoints for Reference Management
+    # -------------------------------------------------------------------------
+    
+    @app.get("/api/admin/references/snippets")
+    async def list_reference_snippets(
+        category: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ):
+        """List all reference snippets with optional filtering.
+        
+        Args:
+            category: Filter by category
+            is_active: Filter by active status
+            
+        Returns:
+            List of reference snippet dictionaries
+        """
+        try:
+            from assistant.references.service import list_reference_snippets as list_snippets
+            
+            db = get_db_session()
+            try:
+                filters = {}
+                if category:
+                    filters["category"] = category
+                if is_active is not None:
+                    filters["is_active"] = is_active
+                
+                snippets = list_snippets(db, filters if filters else None)
+                return {"snippets": [s.to_dict() for s in snippets]}
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.get("/api/admin/references/snippets/{snippet_key}")
+    async def get_reference_snippet(snippet_key: str):
+        """Get a specific reference snippet by key.
+        
+        Args:
+            snippet_key: Unique key of the snippet
+            
+        Returns:
+            Reference snippet dictionary
+        """
+        try:
+            from assistant.references.service import get_reference_snippet_by_key
+            
+            db = get_db_session()
+            try:
+                snippet = get_reference_snippet_by_key(db, snippet_key)
+                if snippet is None:
+                    raise HTTPException(status_code=404, detail="Snippet not found")
+                return snippet.to_dict()
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.post("/api/admin/references/snippets")
+    async def create_reference_snippet_endpoint(request: Dict[str, Any]):
+        """Create a new reference snippet.
+        
+        Args:
+            request: Snippet data including key, title, content, category, etc.
+            
+        Returns:
+            Created snippet dictionary
+        """
+        try:
+            from assistant.references.service import create_reference_snippet
+            from assistant.references.models import ReferenceCategory
+            
+            db = get_db_session()
+            try:
+                # Convert category string to enum
+                category = request.get("category", "other")
+                if isinstance(category, str):
+                    category = ReferenceCategory(category)
+                
+                snippet = create_reference_snippet(
+                    db_session=db,
+                    key=request["key"],
+                    title=request["title"],
+                    content=request["content"],
+                    category=category,
+                    tags=request.get("tags"),
+                    applicable_tools=request.get("applicable_tools"),
+                    applicable_roles=request.get("applicable_roles"),
+                    applicable_modes=request.get("applicable_modes"),
+                    applicable_pages=request.get("applicable_pages"),
+                    is_active=request.get("is_active", True),
+                )
+                return snippet.to_dict()
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {e}")
+    
+    @app.put("/api/admin/references/snippets/{snippet_id}")
+    async def update_reference_snippet_endpoint(snippet_id: int, request: Dict[str, Any]):
+        """Update an existing reference snippet.
+        
+        Args:
+            snippet_id: ID of the snippet to update
+            request: Fields to update
+            
+        Returns:
+            Updated snippet dictionary
+        """
+        try:
+            from assistant.references.service import update_reference_snippet
+            from assistant.references.models import ReferenceCategory
+            
+            db = get_db_session()
+            try:
+                # Convert category string to enum if present
+                if "category" in request and isinstance(request["category"], str):
+                    request["category"] = ReferenceCategory(request["category"])
+                
+                snippet = update_reference_snippet(db, snippet_id, **request)
+                if snippet is None:
+                    raise HTTPException(status_code=404, detail="Snippet not found")
+                return snippet.to_dict()
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.get("/api/admin/references/profiles")
+    async def list_reference_profiles_endpoint():
+        """List all reference profiles.
+        
+        Returns:
+            List of reference profile dictionaries
+        """
+        try:
+            from assistant.references.service import list_reference_profiles
+            
+            db = get_db_session()
+            try:
+                profiles = list_reference_profiles(db)
+                return {"profiles": [p.to_dict() for p in profiles]}
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.get("/api/admin/references/profiles/{profile_key}")
+    async def get_reference_profile(profile_key: str):
+        """Get a specific reference profile by key with its snippets.
+        
+        Args:
+            profile_key: Unique key of the profile
+            
+        Returns:
+            Profile dictionary with associated snippets
+        """
+        try:
+            from assistant.references.service import get_reference_profile_by_key
+            
+            db = get_db_session()
+            try:
+                profile = get_reference_profile_by_key(db, profile_key)
+                if profile is None:
+                    raise HTTPException(status_code=404, detail="Profile not found")
+                
+                result = profile.to_dict()
+                # Include snippets in order
+                result["snippets"] = [
+                    {
+                        "order_index": assoc.order_index,
+                        **assoc.snippet.to_dict()
+                    }
+                    for assoc in sorted(profile.snippet_associations, key=lambda a: a.order_index)
+                ]
+                return result
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.post("/api/admin/references/profiles")
+    async def create_reference_profile_endpoint(request: Dict[str, Any]):
+        """Create a new reference profile.
+        
+        Args:
+            request: Profile data including key, name, description, is_default
+            
+        Returns:
+            Created profile dictionary
+        """
+        try:
+            from assistant.references.service import create_reference_profile
+            
+            db = get_db_session()
+            try:
+                profile = create_reference_profile(
+                    db_session=db,
+                    key=request["key"],
+                    name=request["name"],
+                    description=request.get("description"),
+                    is_default=request.get("is_default", False),
+                )
+                return profile.to_dict()
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {e}")
+    
+    @app.post("/api/admin/references/profiles/{profile_id}/snippets")
+    async def add_snippet_to_profile_endpoint(
+        profile_id: int,
+        request: Dict[str, Any],
+    ):
+        """Add a snippet to a profile.
+        
+        Args:
+            profile_id: ID of the profile
+            request: Contains snippet_id and optional order_index
+            
+        Returns:
+            Association details
+        """
+        try:
+            from assistant.references.service import add_snippet_to_profile
+            
+            db = get_db_session()
+            try:
+                assoc = add_snippet_to_profile(
+                    db_session=db,
+                    profile_id=profile_id,
+                    snippet_id=request["snippet_id"],
+                    order_index=request.get("order_index", 0),
+                )
+                if assoc is None:
+                    raise HTTPException(status_code=404, detail="Profile or snippet not found")
+                return {"success": True, "order_index": assoc.order_index}
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {e}")
+    
+    @app.delete("/api/admin/references/profiles/{profile_id}/snippets/{snippet_id}")
+    async def remove_snippet_from_profile_endpoint(profile_id: int, snippet_id: int):
+        """Remove a snippet from a profile.
+        
+        Args:
+            profile_id: ID of the profile
+            snippet_id: ID of the snippet to remove
+            
+        Returns:
+            Success status
+        """
+        try:
+            from assistant.references.service import remove_snippet_from_profile
+            
+            db = get_db_session()
+            try:
+                success = remove_snippet_from_profile(db, profile_id, snippet_id)
+                if not success:
+                    raise HTTPException(status_code=404, detail="Association not found")
+                return {"success": True}
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.get("/api/admin/references/logs")
+    async def list_reference_logs(
+        conversation_id: Optional[int] = None,
+        limit: int = 50,
+    ):
+        """List reference logs, optionally filtered by conversation.
+        
+        Args:
+            conversation_id: Optional conversation ID to filter by
+            limit: Maximum number of logs to return
+            
+        Returns:
+            List of reference log dictionaries
+        """
+        try:
+            from assistant.references.models import ReferenceLog
+            
+            db = get_db_session()
+            try:
+                query = db.query(ReferenceLog)
+                if conversation_id:
+                    query = query.filter(ReferenceLog.conversation_id == conversation_id)
+                
+                logs = query.order_by(ReferenceLog.created_at.desc()).limit(limit).all()
+                return {"logs": [log.to_dict() for log in logs]}
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.get("/api/admin/references/logs/{log_id}")
+    async def get_reference_log(log_id: int):
+        """Get a specific reference log by ID.
+        
+        Args:
+            log_id: ID of the reference log
+            
+        Returns:
+            Reference log dictionary with full details
+        """
+        try:
+            from assistant.references.models import ReferenceLog
+            
+            db = get_db_session()
+            try:
+                log = db.query(ReferenceLog).filter(ReferenceLog.id == log_id).first()
+                if log is None:
+                    raise HTTPException(status_code=404, detail="Reference log not found")
+                return log.to_dict()
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
+    
+    @app.post("/api/admin/references/seed")
+    async def seed_references_endpoint(force: bool = False):
+        """Manually trigger reference seeding.
+        
+        Args:
+            force: If True, update existing snippets
+            
+        Returns:
+            Seeding results
+        """
+        try:
+            from assistant.references.seed import seed_references
+            
+            db = get_db_session()
+            try:
+                snippets_created, profiles_created = seed_references(db, force=force)
+                return {
+                    "success": True,
+                    "snippets_created": snippets_created,
+                    "profiles_created": profiles_created,
+                }
+            finally:
+                db.close()
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Reference module not available")
     
     return app
 

@@ -1,18 +1,21 @@
 """Context builder for AI assistant system prompts.
 
 Builds system prompts with domain knowledge, user context, permissions,
-and current page context.
+current page context, and dynamic reference snippets.
 """
 
 import sys
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from logging_config import get_logger
 
 from .actions import get_action_registry
+
+if TYPE_CHECKING:
+    from .references.models import ReferenceSnippet
 
 logger = get_logger(__name__)
 
@@ -82,14 +85,18 @@ def build_system_prompt(
     user_roles: Optional[List[str]] = None,
     page_context: Optional[Dict[str, Any]] = None,
     conversation_mode: Optional[str] = None,
+    reference_profile_key: Optional[str] = None,
+    reference_snippets: Optional[List["ReferenceSnippet"]] = None,
 ) -> str:
-    """Build the complete system prompt with context.
+    """Build the complete system prompt with context and reference snippets.
     
     Args:
         user_id: ID of the current user
         user_roles: List of user's roles
         page_context: Context about what the user is viewing
         conversation_mode: Optional conversation mode (e.g., "technical", "casual")
+        reference_profile_key: Key of the reference profile being used (for logging)
+        reference_snippets: Optional list of pre-fetched ReferenceSnippet objects
         
     Returns:
         Complete system prompt string
@@ -120,12 +127,40 @@ def build_system_prompt(
         if mode_context:
             parts.append(f"\n## Mode\n\n{mode_context}")
     
+    # Add reference snippets (dynamic behavior rules, examples, etc.)
+    if reference_snippets:
+        ref_section = build_reference_section(reference_snippets)
+        if ref_section:
+            parts.append(f"\n## Reference Material\n\n{ref_section}")
+    
     # Add available actions summary
     actions_summary = build_actions_summary(user_roles)
     if actions_summary:
         parts.append(f"\n## Available Tools\n\n{actions_summary}")
     
     return "\n".join(parts)
+
+
+def build_reference_section(reference_snippets: List["ReferenceSnippet"]) -> str:
+    """Build the reference material section from snippets.
+    
+    Args:
+        reference_snippets: List of ReferenceSnippet objects
+        
+    Returns:
+        Formatted reference section string
+    """
+    if not reference_snippets:
+        return ""
+    
+    sections = []
+    
+    for snippet in reference_snippets:
+        # Format each snippet with its title as a subsection
+        section = f"### {snippet.title}\n\n{snippet.content}"
+        sections.append(section)
+    
+    return "\n\n".join(sections)
 
 
 def build_user_context(

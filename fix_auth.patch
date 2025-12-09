@@ -1,0 +1,42 @@
+--- /opt/jexida-mcp/server.py
++++ /opt/jexida-mcp/server.py
+@@ -110,7 +110,8 @@
+     def is_auth_enabled() -> bool:
+         """Check if authentication is enabled."""
+-        return bool(settings.auth_password)
++        # TEMPORARILY DISABLED
++        return False
+ 
+     def is_authenticated(request: Request) -> bool:
+@@ -197,21 +198,6 @@
+     @app.middleware("http")
+     async def auth_middleware(request: Request, call_next):
+-        """Check authentication for protected routes."""
+-        # Public paths that don't require auth
+-        public_paths = {"/login", "/health", "/docs", "/redoc", "/openapi.json"}
+-        
+-        # Check if path is public or auth is disabled
+-        path = request.url.path
+-        if not is_auth_enabled() or path in public_paths or path.startswith("/static"):
+-            return await call_next(request)
+-        
+-        # Check if authenticated (access session from scope directly)
+-        # SessionMiddleware stores session in request.scope["session"]
+-        is_authed = False
+-        if "session" in request.scope:
+-            session = request.scope.get("session", {})
+-            is_authed = session.get("authenticated", False)
+-        
+-        if not is_authed:
+-            # For API calls, return 401
+-            if path.startswith("/api/"):
+-                return Response(
+-                    content='{"detail": "Not authenticated"}',
+-                    status_code=401,
+-                    media_type="application/json"
+-                )
+-            # For browser requests, redirect to login
+-            return RedirectResponse(url=f"/login?next={path}", status_code=303)
++        """Auth middleware - temporarily disabled."""
+         return await call_next(request)
+

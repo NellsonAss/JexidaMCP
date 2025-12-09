@@ -13,13 +13,19 @@ fi
 
 # Load environment variables if .env exists
 if [ -f ".env" ]; then
-    export $(grep -v '^#' .env | xargs)
+    # Use set -a to export all variables, handling line endings properly
+    set -a
+    source .env
+    set +a
 fi
 
 # Default values
 PORT=${MCP_SERVER_PORT:-8080}
 HOST=${MCP_SERVER_HOST:-0.0.0.0}
 LOG_LEVEL=${MCP_LOG_LEVEL:-info}
+
+# Remove carriage returns and convert to lowercase
+LOG_LEVEL=$(echo "$LOG_LEVEL" | tr -d '\r\n' | tr '[:upper:]' '[:lower:]')
 
 echo "Starting JexidaMCP Server..."
 echo "  Host: $HOST"
@@ -30,6 +36,6 @@ echo "  Log Level: $LOG_LEVEL"
 exec uvicorn main:app \
     --host "$HOST" \
     --port "$PORT" \
-    --log-level "${LOG_LEVEL,,}" \
+    --log-level "$LOG_LEVEL" \
     --reload
 

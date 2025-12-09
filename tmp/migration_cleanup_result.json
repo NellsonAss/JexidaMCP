@@ -1,0 +1,11 @@
+{
+  "host": "192.168.1.224",
+  "user": "jexida",
+  "command": "rm -f /opt/jexida-mcp/tmp_import_secrets.py",
+  "success": true,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "error": null,
+  "traceback": null
+}

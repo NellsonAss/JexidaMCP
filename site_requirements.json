@@ -1,0 +1,80 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "AI Logic Flow Versioning and Logging",
+      "description": "The AI assistant service must capture step-by-step flow details for each conversation turn, enabling analysis and optimization of AI behavior over time. Each flow must be associated with a versioned logic configuration so that conversations can be isolated by logic version for evaluation.",
+      "acceptance_criteria": [
+        "Every AI processing flow is tagged with a logic version ID",
+        "Step-by-step flow details are logged including: flow_start, conversation_load, context_build, reference_fetch, llm_call, tool_decision, tool_execute, tool_result, flow_end",
+        "Each step captures input data, output data, duration, and tokens used where applicable",
+        "Logic versions can be created, activated, deprecated",
+        "Flow logs can be queried by logic version to isolate conversations for analysis",
+        "Flow summary is returned with each AI response"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-05",
+      "implemented_in": [
+        "mcp_server_files/assistant/logic_flow/models.py",
+        "mcp_server_files/assistant/logic_flow/logger.py",
+        "mcp_server_files/assistant/services.py",
+        "mcp_server_files/migrations/versions/004_create_ai_logic_flow_tables.py"
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "title": "Dashboard migrated from FastAPI to Django",
+      "description": "The web dashboard has been migrated from FastAPI to Django using HTMX + Bootstrap. All dashboard pages (home, secrets, monitoring, assistant) are served by Django views.",
+      "acceptance_criteria": [
+        "Django project serves dashboard at root URL",
+        "All existing dashboard routes work in Django",
+        "HTMX partials function correctly",
+        "Authentication works via Django auth system"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/secrets_app/views.py",
+        "jexida_dashboard/assistant_app/views.py",
+        "jexida_dashboard/assistant_app/api_views.py"
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "title": "MCP/LLM core logic exposed via framework-agnostic services",
+      "description": "Business logic for LLM providers, MCP tools, and assistant processing is extracted into a core/ package that does not depend on any web framework.",
+      "acceptance_criteria": [
+        "core/ package contains all LLM provider logic",
+        "core/ package contains MCP tool registry and tools",
+        "core/services/ contains assistant processing logic",
+        "No FastAPI or Django imports in core/"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "core/providers/",
+        "core/services/",
+        "core/actions/"
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "title": "Database migration strategy implemented",
+      "description": "Django models are defined for all domain objects and a migration command imports existing data from the FastAPI SQLite database.",
+      "acceptance_criteria": [
+        "Django models match existing schema semantics",
+        "Django migrations create tables",
+        "migrate_from_fastapi command imports existing data",
+        "Encrypted secrets remain accessible after migration"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "jexida_dashboard/secrets_app/models.py",
+        "jexida_dashboard/assistant_app/models.py",
+        "jexida_dashboard/assistant_app/management/commands/migrate_from_fastapi.py"
+      ]
+    }
+  ]
+}

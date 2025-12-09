@@ -13,7 +13,9 @@ from sqlalchemy import Column, DateTime, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from config import get_settings
+# NOTE: Do NOT import get_settings at module level to avoid circular import
+# config.py → config_db.py → database.py → config.py
+# Instead, import lazily inside functions that need it
 
 Base = declarative_base()
 
@@ -42,6 +44,7 @@ def get_encryption_key() -> bytes:
     If not set, generates a new key (for development only).
     In production, SECRET_ENCRYPTION_KEY must be set.
     """
+    from config import get_settings
     settings = get_settings()
     
     if settings.secret_encryption_key:
@@ -79,6 +82,7 @@ def decrypt_value(encrypted_value: str) -> str:
 # Database setup
 def get_database_url() -> str:
     """Get database URL from settings or default to SQLite."""
+    from config import get_settings
     settings = get_settings()
     
     if settings.database_url:
@@ -92,7 +96,24 @@ def get_database_url() -> str:
 def get_engine():
     """Get SQLAlchemy engine."""
     database_url = get_database_url()
-    return create_engine(database_url, connect_args={"check_same_thread": False} if "sqlite" in database_url else {})
+    # For SQLite, configure for better concurrent access
+    if "sqlite" in database_url:
+        connect_args = {
+            "check_same_thread": False,
+            "timeout": 20.0,  # 20 second timeout for database operations
+        }
+        # Use WAL mode for better concurrency
+        engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
+        # Enable WAL mode for better concurrent access
+        from sqlalchemy import event
+        @event.listens_for(engine, "connect")
+        def set_sqlite_pragma(dbapi_conn, connection_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.close()
+        return engine
+    else:
+        return create_engine(database_url, pool_pre_ping=True)
 
 
 def get_session_local():

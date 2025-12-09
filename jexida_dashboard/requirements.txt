@@ -1,0 +1,14 @@
+# Django Dashboard Requirements
+# These are additional to the main project requirements
+
+# Core Django
+Django>=4.2,<5.0
+gunicorn>=21.0.0
+
+# Environment & Config
+python-dotenv>=1.0.0
+dj-database-url>=2.0.0
+
+# Already in main requirements but needed
+cryptography>=41.0.0
+

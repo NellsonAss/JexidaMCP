@@ -1,0 +1,37 @@
+============================================================
+Secret Migration Script
+============================================================
+Host: 192.168.1.224
+User: jexida
+App Directory: /opt/jexida-mcp
+
+Step 1: Reading secrets from local database...
+Found 4 secret(s):
+  - username (unifi/username)
+  - controller_url (unifi/controller_url)
+  - Site (unifi/site)
+  - UnifiPass (unifi/password)
+
+Step 2: Creating import script...
+Created temporary script: tmp_import_secrets.py
+
+Step 3: Copying import script to server...
+Script copied to /opt/jexida-mcp/tmp_import_secrets.py
+
+Step 4: Executing import script on server...
+Imported username (unifi/username)
+Imported controller_url (unifi/controller_url)
+Imported Site (unifi/site)
+Imported UnifiPass (unifi/password)
+
+Import complete: 4 imported, 0 skipped, 0 errors
+
+
+Step 5: Cleaning up...
+Cleanup complete.
+
+============================================================
+Migration complete!
+============================================================
+
+Summary written to: tmp/migration_summary.json

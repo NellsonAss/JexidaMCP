@@ -2,6 +2,11 @@
 
 {% block title %}AI Assistant{% endblock %}
 
+{% block head %}
+<!-- Progress tree styles -->
+<link rel="stylesheet" href="/static/css/progress.css">
+{% endblock %}
+
 {% block extra_styles %}
 <style>
     :root {
@@ -551,6 +556,92 @@
     .messages-container::-webkit-scrollbar-thumb:hover {
         background: #555;
     }
+
+    /* Streaming mode toggle */
+    .streaming-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        font-size: 0.8rem;
+        border: 1px solid var(--border);
+    }
+
+    .streaming-toggle.active {
+        border-color: #4ade80;
+        background: rgba(74, 222, 128, 0.1);
+    }
+
+    .streaming-toggle label {
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .streaming-toggle.active label {
+        color: #4ade80;
+    }
+
+    .streaming-toggle .toggle-status {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .streaming-toggle.active .toggle-status {
+        background: #4ade80;
+        color: #000;
+    }
+
+    .streaming-toggle input[type="checkbox"] {
+        appearance: none;
+        width: 40px;
+        height: 22px;
+        background: #444;
+        border-radius: 11px;
+        cursor: pointer;
+        position: relative;
+        transition: background 0.2s;
+    }
+
+    .streaming-toggle input[type="checkbox"]::after {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background: #888;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    .streaming-toggle input[type="checkbox"]:checked {
+        background: #22c55e;
+    }
+
+    .streaming-toggle input[type="checkbox"]:checked::after {
+        transform: translateX(18px);
+        background: white;
+    }
+
+    /* Progress container in message */
+    .message-progress {
+        margin-top: 12px;
+    }
+
+    /* Active progress indicator */
+    .progress-active {
+        border: 1px solid var(--accent);
+        box-shadow: 0 0 12px rgba(233, 69, 96, 0.2);
+    }
 </style>
 {% endblock %}
 
@@ -571,6 +662,14 @@
                        min="0" max="2" step="0.1" value="0.7"
                        oninput="updateTempDisplay(this.value)">
                 <span class="temp-value" id="temp-value">0.7</span>
+            </div>
+            <div class="streaming-toggle active" id="streaming-toggle">
+                <label for="streaming-mode">
+                    <i class="bi bi-activity"></i>
+                    <span>Live Progress</span>
+                    <input type="checkbox" id="streaming-mode" checked>
+                    <span class="toggle-status" id="toggle-status">ON</span>
+                </label>
             </div>
             <span class="status" id="status-text">Ready</span>
         </div>
@@ -611,6 +710,8 @@
     let currentModel = null;
     let currentTemperature = 0.7;
     let availableModels = [];
+    let streamingEnabled = true;
+    let currentEventSource = null;
     
     const messagesContainer = document.getElementById('messages');
     const messageInput = document.getElementById('message-input');
@@ -621,6 +722,22 @@
     const tempContainer = document.getElementById('temp-container');
     const tempSlider = document.getElementById('temp-slider');
     const tempValue = document.getElementById('temp-value');
+    const streamingToggle = document.getElementById('streaming-mode');
+    const streamingToggleContainer = document.getElementById('streaming-toggle');
+    const toggleStatus = document.getElementById('toggle-status');
+    
+    // Initialize streaming toggle
+    streamingToggle.addEventListener('change', (e) => {
+        streamingEnabled = e.target.checked;
+        if (streamingEnabled) {
+            streamingToggleContainer.classList.add('active');
+            toggleStatus.textContent = 'ON';
+        } else {
+            streamingToggleContainer.classList.remove('active');
+            toggleStatus.textContent = 'OFF';
+        }
+        console.log('Streaming mode:', streamingEnabled ? 'enabled' : 'disabled');
+    });
 
     function updateTempDisplay(value) {
         currentTemperature = parseFloat(value);
@@ -761,25 +878,36 @@
         messageInput.style.height = 'auto';
 
         setLoading(true);
+
+        // Build request body
+        const requestBody = {
+            message: content,
+            conversation_id: conversationId,
+            page_context: {
+                page: 'assistant',
+                path: window.location.pathname,
+            },
+        };
+        
+        // Include temperature if model supports it
+        const model = availableModels.find(m => m.id === currentModel);
+        if (model && model.supports_temperature) {
+            requestBody.temperature = currentTemperature;
+        }
+
+        if (streamingEnabled) {
+            // Use streaming endpoint with progress updates
+            await sendMessageStreaming(requestBody);
+        } else {
+            // Use regular endpoint
+            await sendMessageRegular(requestBody);
+        }
+    }
+
+    async function sendMessageRegular(requestBody) {
         addTypingIndicator();
 
         try {
-            // Build request body
-            const requestBody = {
-                message: content,
-                conversation_id: conversationId,
-                page_context: {
-                    page: 'assistant',
-                    path: window.location.pathname,
-                },
-            };
-            
-            // Include temperature if model supports it
-            const model = availableModels.find(m => m.id === currentModel);
-            if (model && model.supports_temperature) {
-                requestBody.temperature = currentTemperature;
-            }
-            
             const response = await fetch('/api/assistant/chat', {
                 method: 'POST',
                 headers: {
@@ -809,6 +937,313 @@
             addMessage('system', `Error: ${error.message}`);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function sendMessageStreaming(requestBody) {
+        // Create progress container for this message
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-tree progress-active';
+        progressContainer.id = 'current-progress';
+        messagesContainer.appendChild(progressContainer);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Track tasks for updates
+        const tasks = new Map();
+
+        try {
+            const response = await fetch('/api/assistant/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                let readResult;
+                try {
+                    readResult = await reader.read();
+                } catch (readError) {
+                    // Handle stream reading errors
+                    console.error('Stream read error:', readError);
+                    addMessage('system', `Error: Failed to read stream - ${readError.message || 'Connection interrupted'}`);
+                    break;
+                }
+                
+                const { done, value } = readResult;
+                if (done) break;
+
+                try {
+                    buffer += decoder.decode(value, { stream: true });
+                } catch (decodeError) {
+                    console.error('Decode error:', decodeError);
+                    addMessage('system', `Error: Failed to decode stream data - ${decodeError.message || 'Invalid encoding'}`);
+                    break;
+                }
+                
+                // Process complete events (separated by double newlines)
+                const events = buffer.split('\n\n');
+                buffer = events.pop(); // Keep incomplete event in buffer
+
+                for (const eventStr of events) {
+                    if (!eventStr.trim()) continue;
+                    
+                    // Parse SSE event
+                    const lines = eventStr.split('\n');
+                    let eventType = '';
+                    let eventData = '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.slice(7);
+                        } else if (line.startsWith('data: ')) {
+                            eventData = line.slice(6);
+                        } else if (line.startsWith(': ')) {
+                            // Comment/keepalive, ignore
+                            continue;
+                        }
+                    }
+
+                    if (!eventData) continue;
+
+                    try {
+                        const data = JSON.parse(eventData);
+                        handleProgressEvent(eventType, data, progressContainer, tasks);
+                    } catch (e) {
+                        console.warn('Failed to parse event data:', eventData, e);
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('Streaming error:', error);
+            addMessage('system', `Error: ${error.message}`);
+        } finally {
+            // Remove active state from progress container
+            progressContainer.classList.remove('progress-active');
+            
+            // Auto-collapse completed tasks after a delay
+            setTimeout(() => {
+                const doneTasks = progressContainer.querySelectorAll('.task-done[open]');
+                doneTasks.forEach(task => {
+                    task.removeAttribute('open');
+                });
+            }, 1500);
+
+            setLoading(false);
+        }
+    }
+
+    function handleProgressEvent(eventType, data, container, tasks) {
+        const task = data.task;
+        
+        switch (eventType) {
+            case 'task.start':
+                // Create new task node
+                const taskNode = createTaskNode(task);
+                tasks.set(task.id, taskNode);
+                
+                // Add to parent or container
+                if (task.parent_id && tasks.has(task.parent_id)) {
+                    const parentNode = tasks.get(task.parent_id);
+                    const childrenContainer = parentNode.querySelector('.task-children');
+                    if (childrenContainer) {
+                        childrenContainer.appendChild(taskNode);
+                    } else {
+                        parentNode.querySelector('.task-content').appendChild(taskNode);
+                    }
+                } else {
+                    container.appendChild(taskNode);
+                }
+                
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                break;
+
+            case 'task.update':
+                if (tasks.has(task.id)) {
+                    const node = tasks.get(task.id);
+                    updateTaskNode(node, task);
+                }
+                break;
+
+            case 'task.done':
+                if (tasks.has(task.id)) {
+                    const node = tasks.get(task.id);
+                    completeTaskNode(node, task);
+                }
+                break;
+
+            case 'task.error':
+                if (tasks.has(task.id)) {
+                    const node = tasks.get(task.id);
+                    errorTaskNode(node, task);
+                }
+                break;
+
+            case 'message.chunk':
+                // Handle streaming message content if needed
+                break;
+
+            case 'done':
+                // Final event - add the assistant message
+                if (data.content || (task && task.summary)) {
+                    const metadata = task?.metadata || {};
+                    conversationId = data.conversation_id || metadata.conversation_id;
+                    
+                    addMessage(
+                        'assistant',
+                        data.content || task.summary,
+                        metadata.tool_calls,
+                        metadata.pending_confirmations
+                    );
+                }
+                break;
+
+            case 'error':
+                // Handle top-level error events from the stream
+                const errorMessage = data.error || 'An unknown error occurred';
+                addMessage('system', `Error: ${errorMessage}`);
+                // Mark all running tasks as errored
+                tasks.forEach((node, taskId) => {
+                    const details = node.closest('details');
+                    if (details && details.classList.contains('task-running')) {
+                        errorTaskNode(node, { id: taskId, summary: errorMessage });
+                    }
+                });
+                break;
+        }
+
+        // Update status text
+        if (task && task.status === 'running') {
+            statusText.textContent = task.title || 'Processing...';
+        } else if (eventType === 'done') {
+            statusText.textContent = 'Ready';
+        }
+    }
+
+    function createTaskNode(task) {
+        const details = document.createElement('details');
+        details.className = `task-node task-${task.status}`;
+        details.id = `task-${task.id}`;
+        details.dataset.taskId = task.id;
+        details.dataset.parentId = task.parent_id || '';
+        details.dataset.status = task.status;
+        
+        if (task.status === 'running' || task.status === 'pending') {
+            details.open = true;
+        }
+
+        details.innerHTML = `
+            <summary class="task-header">
+                <span class="task-status-icon">
+                    ${getStatusIcon(task.status)}
+                </span>
+                <span class="task-title">${escapeHtml(task.title)}</span>
+                ${task.summary ? `<span class="task-summary">${escapeHtml(task.summary)}</span>` : ''}
+            </summary>
+            <div class="task-content">
+                ${task.detail ? `<div class="task-detail">${escapeHtml(task.detail)}</div>` : ''}
+                <div class="task-children"></div>
+            </div>
+        `;
+
+        return details;
+    }
+
+    function updateTaskNode(node, task) {
+        node.className = `task-node task-${task.status}`;
+        node.dataset.status = task.status;
+
+        const statusIcon = node.querySelector('.task-status-icon');
+        if (statusIcon) {
+            statusIcon.innerHTML = getStatusIcon(task.status);
+        }
+
+        const title = node.querySelector('.task-title');
+        if (title) {
+            title.textContent = task.title;
+        }
+
+        const detail = node.querySelector('.task-detail');
+        if (task.detail) {
+            if (detail) {
+                detail.textContent = task.detail;
+            } else {
+                const content = node.querySelector('.task-content');
+                const newDetail = document.createElement('div');
+                newDetail.className = 'task-detail';
+                newDetail.textContent = task.detail;
+                content.insertBefore(newDetail, content.firstChild);
+            }
+        }
+    }
+
+    function completeTaskNode(node, task) {
+        node.className = `task-node task-done`;
+        node.dataset.status = 'done';
+
+        const statusIcon = node.querySelector('.task-status-icon');
+        if (statusIcon) {
+            statusIcon.innerHTML = getStatusIcon('done');
+        }
+
+        // Add or update summary
+        let summary = node.querySelector('.task-summary');
+        if (task.summary) {
+            if (!summary) {
+                summary = document.createElement('span');
+                summary.className = 'task-summary';
+                node.querySelector('.task-header').appendChild(summary);
+            }
+            summary.textContent = task.summary;
+        }
+
+        // Auto-collapse after short delay
+        setTimeout(() => {
+            node.removeAttribute('open');
+        }, 800);
+    }
+
+    function errorTaskNode(node, task) {
+        node.className = `task-node task-error`;
+        node.dataset.status = 'error';
+
+        const statusIcon = node.querySelector('.task-status-icon');
+        if (statusIcon) {
+            statusIcon.innerHTML = getStatusIcon('error');
+        }
+
+        // Add error summary
+        let summary = node.querySelector('.task-summary');
+        if (!summary) {
+            summary = document.createElement('span');
+            summary.className = 'task-summary';
+            node.querySelector('.task-header').appendChild(summary);
+        }
+        summary.textContent = task.summary || 'Error';
+    }
+
+    function getStatusIcon(status) {
+        switch (status) {
+            case 'running':
+                return '<span class="task-spinner"></span>';
+            case 'pending':
+                return '<i class="bi bi-hourglass-split"></i>';
+            case 'done':
+                return '<i class="bi bi-check-circle-fill text-success"></i>';
+            case 'error':
+                return '<i class="bi bi-x-circle-fill text-danger"></i>';
+            default:
+                return '<i class="bi bi-circle"></i>';
         }
     }
 

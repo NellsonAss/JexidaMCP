@@ -115,6 +115,16 @@ class Settings(BaseSettings):
         description="Environment: development or production"
     )
     
+    # Authentication settings
+    auth_password: Optional[str] = Field(
+        default=None,
+        description="Password for web UI access (if not set, auth is disabled)"
+    )
+    auth_session_secret: Optional[str] = Field(
+        default=None,
+        description="Secret key for session cookies (auto-generated if not set)"
+    )
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -137,6 +147,10 @@ class Settings(BaseSettings):
             data["synology_password"] = "***MASKED***"
         if data.get("secret_encryption_key"):
             data["secret_encryption_key"] = "***MASKED***"
+        if data.get("auth_password"):
+            data["auth_password"] = "***MASKED***"
+        if data.get("auth_session_secret"):
+            data["auth_session_secret"] = "***MASKED***"
         return data
 
 
@@ -172,11 +186,11 @@ def get_settings() -> Settings:
 
 
 def reload_settings() -> Settings:
-    """Force reload settings from environment.
+    """Force reload settings from environment and database.
     
-    Useful for testing or after environment changes.
+    Useful for testing or after environment/secret changes.
     """
     global _settings
-    _settings = Settings()
-    return _settings
+    _settings = None  # Clear cache
+    return get_settings()  # Reload from environment + database
 

@@ -1,6 +1,7 @@
 """SSH client wrapper for executing commands on remote server."""
 
 import subprocess
+import base64
 from typing import Tuple
 
 
@@ -19,6 +20,23 @@ class SSHClient:
         self.user = user
         self.connection_string = f"{user}@{host}"
 
+    @staticmethod
+    def _escape_command(command: str) -> str:
+        """
+        Escape a command for safe execution within single quotes.
+        
+        Args:
+            command: Command to escape
+            
+        Returns:
+            Properly escaped command string (ready to be wrapped in single quotes)
+        """
+        # Escape single quotes by ending the string, adding escaped quote, and restarting
+        # This handles: ' -> '\''
+        # The result should be wrapped in single quotes by the caller
+        escaped = command.replace("'", "'\\''")
+        return escaped
+
     def execute_command(self, command: str) -> Tuple[str, str, int]:
         """
         Execute a command on the remote server via SSH.
@@ -29,12 +47,17 @@ class SSHClient:
         Returns:
             Tuple of (stdout, stderr, exit_code)
         """
-        # Escape the command for SSH
-        # On Windows, we need to handle quoting carefully
+        # Use base64 encoding to avoid all shell interpretation issues
+        # This prevents bash history expansion, special character issues, etc.
+        # Decode on remote side: echo <base64> | base64 -d | sh
+        command_bytes = command.encode('utf-8')
+        command_b64 = base64.b64encode(command_bytes).decode('ascii')
+        wrapped_command = f"echo {command_b64} | base64 -d | sh"
+        
         ssh_command = [
             "ssh",
             self.connection_string,
-            command,
+            wrapped_command,
         ]
 
         try:

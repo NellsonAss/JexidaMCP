@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "host": "192.168.1.224",
+  "user": "jexida",
+  "app_dir": "/opt/jexida-mcp",
+  "secrets_found": 4,
+  "secrets_migrated": 4,
+  "log_file": "migration_log.txt",
+  "execution_result_file": "tmp/migration_exec_result.json"
+}

@@ -1,0 +1,11 @@
+{
+  "host": "192.168.1.224",
+  "user": "jexida",
+  "command": "cd /opt/jexida-mcp && /opt/jexida-mcp/venv/bin/python3 tmp_import_secrets.py",
+  "success": true,
+  "exit_code": 0,
+  "stdout": "Imported username (unifi/username)\nImported controller_url (unifi/controller_url)\nImported Site (unifi/site)\nImported UnifiPass (unifi/password)\n\nImport complete: 4 imported, 0 skipped, 0 errors\n",
+  "stderr": "",
+  "error": null,
+  "traceback": null
+}

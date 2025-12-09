@@ -1,0 +1,362 @@
+/* Task Progress Tree Styles */
+/* 
+ * Styles for the nested task progress UI with expand/collapse behavior.
+ * Uses CSS-only animations for spinners and transitions.
+ */
+
+:root {
+    --progress-bg: rgba(255, 255, 255, 0.03);
+    --progress-border: rgba(255, 255, 255, 0.1);
+    --progress-running: #fbbf24;
+    --progress-done: #4ade80;
+    --progress-error: #f87171;
+    --progress-pending: #8b949e;
+    --progress-text: #c9d1d9;
+    --progress-text-muted: #8b949e;
+}
+
+/* Progress Tree Container */
+.progress-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--progress-bg);
+    border-radius: 12px;
+    border: 1px solid var(--progress-border);
+    margin: 12px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.progress-tree:empty {
+    display: none;
+}
+
+/* Task Node */
+.task-node {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid var(--progress-border);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.task-node[open] {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Task Header (Summary) */
+.task-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    transition: background 0.2s ease;
+}
+
+.task-header::-webkit-details-marker {
+    display: none;
+}
+
+.task-header::before {
+    content: '▶';
+    font-size: 0.7em;
+    color: var(--progress-text-muted);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.task-node[open] > .task-header::before {
+    transform: rotate(90deg);
+}
+
+.task-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Status Icon */
+.task-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.task-status-icon i {
+    font-size: 16px;
+}
+
+/* Spinner Animation */
+.task-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--progress-border);
+    border-top-color: var(--progress-running);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Pulse animation for running tasks */
+.task-running .task-header {
+    animation: pulse-bg 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+    0%, 100% {
+        background: rgba(251, 191, 36, 0.05);
+    }
+    50% {
+        background: rgba(251, 191, 36, 0.1);
+    }
+}
+
+/* Task Title */
+.task-title {
+    flex: 1;
+    font-weight: 500;
+    color: var(--progress-text);
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Task Summary (shown inline when done) */
+.task-summary {
+    font-size: 0.8rem;
+    color: var(--progress-text-muted);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Task Duration Badge */
+.task-duration {
+    font-size: 0.75rem;
+    color: var(--progress-text-muted);
+    font-family: 'Fira Code', monospace;
+}
+
+/* Task Content (expandable area) */
+.task-content {
+    padding: 0 14px 10px 44px;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Task Detail Text */
+.task-detail {
+    font-size: 0.85rem;
+    color: var(--progress-text-muted);
+    padding: 8px 0;
+    font-family: 'Fira Code', monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Child Tasks Container */
+.task-children {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.task-children:empty {
+    display: none;
+}
+
+/* Nested task indentation */
+.task-children .task-node {
+    margin-left: 0;
+    border-left: 2px solid var(--progress-border);
+}
+
+.task-children .task-children .task-node {
+    border-left-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Status-specific styles */
+.task-pending .task-title {
+    color: var(--progress-pending);
+}
+
+.task-running .task-title {
+    color: var(--progress-running);
+}
+
+.task-done .task-title {
+    color: var(--progress-done);
+}
+
+.task-error .task-title {
+    color: var(--progress-error);
+}
+
+/* Collapsed done task - more compact */
+.task-done:not([open]) {
+    opacity: 0.8;
+}
+
+.task-done:not([open]) .task-header {
+    padding: 6px 14px;
+}
+
+/* Error state styling */
+.task-error {
+    border-color: rgba(248, 113, 113, 0.3);
+    background: rgba(248, 113, 113, 0.05);
+}
+
+.task-error .task-detail {
+    color: var(--progress-error);
+}
+
+/* Auto-collapse animation for completed tasks */
+.task-node.collapsing {
+    animation: collapse 0.3s ease forwards;
+}
+
+@keyframes collapse {
+    0% {
+        max-height: 500px;
+    }
+    100% {
+        max-height: 44px;
+    }
+}
+
+/* Progress indicator for overall request */
+.progress-overall {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--progress-bg);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.progress-overall-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--progress-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-overall-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--progress-running), var(--progress-done));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.progress-overall-text {
+    font-size: 0.8rem;
+    color: var(--progress-text-muted);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Thinking indicator */
+.thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    color: var(--progress-text-muted);
+    font-size: 0.85rem;
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.thinking-dots span {
+    width: 6px;
+    height: 6px;
+    background: var(--progress-running);
+    border-radius: 50%;
+    animation: thinking 1.4s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes thinking {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Scrollbar styling for progress tree */
+.progress-tree::-webkit-scrollbar {
+    width: 6px;
+}
+
+.progress-tree::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.progress-tree::-webkit-scrollbar-thumb {
+    background: var(--progress-border);
+    border-radius: 3px;
+}
+
+.progress-tree::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .task-summary {
+        display: none;
+    }
+    
+    .task-header {
+        padding: 8px 10px;
+    }
+    
+    .task-content {
+        padding-left: 30px;
+    }
+}
+
