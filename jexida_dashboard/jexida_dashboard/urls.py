@@ -23,4 +23,10 @@ urlpatterns = [
     # AI Assistant
     path("assistant/", include("assistant_app.urls")),
     path("api/assistant/", include("assistant_app.api_urls")),
+    
+    # MCP Tools (self-extending platform)
+    path("tools/", include("mcp_tools_core.urls")),
+    
+    # Jobs and Worker Nodes
+    path("jobs/", include("jobs_app.urls")),
 ]

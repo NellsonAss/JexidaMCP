@@ -1,0 +1,171 @@
+# JexidaMCP Project Rules
+
+## Project Overview
+
+JexidaMCP is a Django-based Machine Control Platform that provides:
+- Self-extending MCP tool system
+- Worker node (droid) management
+- Integration with UniFi, Synology, Azure, and n8n
+- CLI interface (jexida_cli)
+
+## Architecture
+
+### MCP Server
+- **URL**: http://192.168.1.224:8080
+- **Framework**: Django with HTMX + Bootstrap
+- **Tool API**: REST endpoint at `/tools/api/tools/`
+  - List tools: `GET /tools/api/tools/`
+  - Run tool: `POST /tools/api/tools/{tool_name}/run/` with JSON body
+- **SSH Access**: `ssh jexida@192.168.1.224` (key-based auth)
+- **Service**: `jexida-mcp.service` (systemd)
+- **Path**: `/opt/jexida-mcp/`
+
+### MCP Tool Development
+
+Tools are async Python functions with Pydantic schemas:
+
+```python
+# Location: jexida_dashboard/mcp_tools_core/tools/{category}/{tool_name}.py
+
+from pydantic import BaseModel, Field
+
+class MyToolInput(BaseModel):
+    param: str = Field(description="Parameter description")
+
+class MyToolOutput(BaseModel):
+    success: bool = Field(description="Whether it succeeded")
+    result: str = Field(default="", description="The result")
+
+async def my_tool(params: MyToolInput) -> MyToolOutput:
+    """Tool description for MCP."""
+    # Implementation
+    return MyToolOutput(success=True, result="done")
+```
+
+**Deployment Process**:
+1. Create tool file in `jexida_dashboard/mcp_tools_core/tools/{category}/`
+2. Update `__init__.py` to export the function
+3. Create registration script in `scripts/register_{tool}.py`
+4. Copy files: `scp {files} jexida@192.168.1.224:/opt/jexida-mcp/jexida_dashboard/...`
+5. Register: `ssh jexida@192.168.1.224 "cd /opt/jexida-mcp && source venv/bin/activate && python scripts/register_{tool}.py"`
+6. Restart: `ssh jexida@192.168.1.224 "sudo systemctl restart jexida-mcp.service"`
+
+### Worker Nodes (Droids)
+
+Remote Ubuntu servers that execute jobs via SSH:
+
+| Node | IP | Purpose |
+|------|----|---------|
+| JexidaDroid1 | 192.168.1.66 | General worker |
+| JexidaDroid2 | 192.168.1.254 | n8n automation host |
+
+**Node Setup Requirements**:
+- `jexida` user with sudo access
+- MCP server's SSH key in `~/.ssh/authorized_keys`
+- Python 3 installed
+- Directories: `/opt/jexida-jobs/`, `/var/log/jexida-jobs/`
+
+**Key MCP Tools for Nodes**:
+- `register_worker_node` - Add node to database
+- `check_worker_node` - Verify SSH connectivity
+- `catalog_node_capabilities` - Discover hardware/software
+- `get_node_setup_instructions` - Generate setup commands
+- `submit_job` - Execute command on node
+
+### n8n Automation Platform
+
+n8n runs on JexidaDroid2 (192.168.1.254) via Docker:
+
+**Deployment**:
+```bash
+# Via MCP API
+curl -X POST http://192.168.1.224:8080/tools/api/tools/n8n_deploy_stack/run/ \
+  -H "Content-Type: application/json" \
+  -d '{"node_name": "JexidaDroid2", "n8n_user": "admin", "n8n_password": "...", "encryption_key": "auto"}'
+```
+
+**n8n MCP Tools**:
+| Tool | Purpose |
+|------|---------|
+| `n8n_deploy_stack` | Install n8n on a worker node |
+| `n8n_health_check` | Check if n8n is running |
+| `n8n_list_workflows` | List all workflows |
+| `n8n_get_workflow` | Get workflow details |
+| `n8n_run_workflow` | Execute a workflow |
+| `n8n_get_execution` | Get execution status |
+| `n8n_trigger_webhook` | Trigger webhook endpoint |
+| `n8n_restart_stack` | Restart Docker container |
+| `n8n_backup` | Backup n8n data |
+| `n8n_restore_backup` | Restore from backup |
+
+**Configuration** (on MCP server):
+```env
+N8N_BASE_URL=http://192.168.1.254:5678
+N8N_USER=admin
+N8N_PASSWORD=<password>
+N8N_SSH_HOST=192.168.1.254
+N8N_SSH_USER=jexida
+```
+
+**CLI Commands**:
+```
+/n8n health           - Check health
+/n8n list             - List workflows
+/n8n run <id>         - Run workflow
+/n8n webhook <path>   - Trigger webhook
+/n8n backup           - Create backup
+/n8n restart          - Restart stack
+```
+
+## CLI (jexida_cli)
+
+The CLI uses a command router pattern:
+- Commands in `jexida_cli/commands/`
+- Router at `jexida_cli/commands/router.py`
+- UI rendering in `jexida_cli/ui/`
+
+**Adding CLI Commands**:
+1. Create handler in `jexida_cli/commands/{feature}.py`
+2. Add to router's `_commands` or `_prefix_commands` dict
+3. Implement `_cmd_{name}` method in router
+
+## Key Directories
+
+```
+jexida_dashboard/
+├── mcp_tools_core/
+│   ├── tools/           # MCP tool implementations
+│   │   ├── admin/       # Admin tools (register, knowledge)
+│   │   ├── azure/       # Azure CLI, cost, monitoring
+│   │   ├── jobs/        # Worker node & job management
+│   │   ├── n8n/         # n8n automation tools
+│   │   ├── synology/    # Synology NAS tools
+│   │   └── unifi/       # UniFi network tools
+│   ├── models.py        # Tool, WorkerNode, Job models
+│   └── executor.py      # Tool execution engine
+
+jexida_cli/
+├── commands/            # CLI command handlers
+├── ui/                  # Terminal UI rendering
+└── state/               # Session/config persistence
+
+scripts/                 # Deployment & registration scripts
+docs/                    # Documentation
+tests/                   # Test suite
+```
+
+## Requirements Tracking
+
+All features must be tracked in `site_requirements.json` with:
+- Unique ID (e.g., `REQ-001`, `MCP-N8N-001`)
+- Title and description
+- Acceptance criteria
+- Implementation file paths
+
+## Before Deploying
+
+Always check existing MCP tools before writing new code:
+```bash
+curl http://192.168.1.224:8080/tools/api/tools/ | jq '.tools[].name'
+```
+

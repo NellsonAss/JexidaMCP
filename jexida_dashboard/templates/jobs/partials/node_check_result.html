@@ -1,0 +1,18 @@
+{% if result.reachable %}
+<div class="alert alert-success mb-0 py-2">
+    <i class="bi bi-check-circle me-1"></i>
+    <strong>Reachable</strong> ({{ result.latency_ms }}ms)
+    {% if result.stdout %}
+    <pre class="mb-0 mt-2 p-2 bg-dark rounded small" style="max-height: 150px; overflow-y: auto;"><code>{{ result.stdout|truncatechars:500 }}</code></pre>
+    {% endif %}
+</div>
+{% else %}
+<div class="alert alert-danger mb-0 py-2">
+    <i class="bi bi-x-circle me-1"></i>
+    <strong>Unreachable</strong>
+    {% if result.error %}
+    <div class="small mt-1">{{ result.error|truncatechars:200 }}</div>
+    {% endif %}
+</div>
+{% endif %}
+

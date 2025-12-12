@@ -3,78 +3,217 @@
 {% block content %}
 <div class="page-header">
     <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
-    <p class="text-muted">System overview and monitoring</p>
+    <p class="text-muted">MCP Platform Overview</p>
 </div>
 
-<!-- Stats Cards -->
+<!-- MCP Status Row -->
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card azure">
-            <div class="stat-value">{{ secret_counts.azure }}</div>
-            <div class="stat-label">Azure Secrets</div>
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-cpu me-2"></i>MCP Status
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center border-end">
+                        {% if mcp_status.connected %}
+                        <div class="text-success mb-2">
+                            <i class="bi bi-check-circle-fill display-5"></i>
+                        </div>
+                        <h6 class="text-success">Connected</h6>
+                        <small class="text-muted">MCP Server Online</small>
+                        {% else %}
+                        <div class="text-danger mb-2">
+                            <i class="bi bi-x-circle-fill display-5"></i>
+                        </div>
+                        <h6 class="text-danger">Disconnected</h6>
+                        <small class="text-muted">{{ mcp_status.error }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-center border-end">
+                        <div class="text-primary mb-2">
+                            <span class="display-5 fw-bold">{{ mcp_tools_total }}</span>
+                        </div>
+                        <h6>MCP Tools</h6>
+                        <small class="text-muted">Active & Available</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        {% if mcp_status.provider_configured %}
+                        <div class="text-info mb-2">
+                            <i class="bi bi-robot display-5"></i>
+                        </div>
+                        <h6>{{ mcp_status.provider|default:"AI" }}</h6>
+                        <small class="text-muted">{{ mcp_status.model|default:"Ready" }}</small>
+                        {% else %}
+                        <div class="text-warning mb-2">
+                            <i class="bi bi-exclamation-triangle display-5"></i>
+                        </div>
+                        <h6 class="text-warning">Not Configured</h6>
+                        <small class="text-muted">AI Provider Missing</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if top_categories %}
+                <hr>
+                <h6 class="text-muted mb-2">Top Tool Categories</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for category, count in top_categories %}
+                    <a href="{% url 'mcp_tools:list' %}?tag={{ category }}" class="badge bg-primary text-decoration-none">
+                        {{ category }} ({{ count }})
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card unifi">
-            <div class="stat-value">{{ secret_counts.unifi }}</div>
-            <div class="stat-label">UniFi Secrets</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card synology">
-            <div class="stat-value">{{ secret_counts.synology }}</div>
-            <div class="stat-label">Synology Secrets</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card generic">
-            <div class="stat-value">{{ secret_counts.generic }}</div>
-            <div class="stat-label">Generic Secrets</div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions -->
-<div class="row g-4 mb-4">
-    <div class="col-md-6">
-        <div class="card">
+    
+    <div class="col-lg-4">
+        <div class="card h-100">
             <div class="card-header">
                 <i class="bi bi-lightning me-2"></i>Quick Actions
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'secrets:create' %}" class="btn btn-outline-primary">
-                        <i class="bi bi-plus-circle me-2"></i>Add New Secret
+                    <a href="{% url 'assistant:chat' %}" class="btn btn-primary">
+                        <i class="bi bi-robot me-2"></i>AI Assistant
                     </a>
-                    <a href="{% url 'assistant:chat' %}" class="btn btn-outline-primary">
-                        <i class="bi bi-robot me-2"></i>Open AI Assistant
+                    <a href="{% url 'mcp_tools:list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-tools me-2"></i>Browse Tools
                     </a>
-                    <a href="{% url 'dashboard:monitoring' %}" class="btn btn-outline-primary">
-                        <i class="bi bi-graph-up me-2"></i>View Monitoring
+                    <a href="{% url 'jobs:submit' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-terminal me-2"></i>Submit Job
                     </a>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-activity me-2"></i>System Status
+</div>
+
+<!-- Nodes and Jobs Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-hdd-stack me-2"></i>Worker Nodes</span>
+                <a href="{% url 'jobs:nodes' %}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
             <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="badge bg-success me-2">
-                        <i class="bi bi-check-circle"></i>
-                    </span>
-                    <span>System is healthy</span>
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <span class="display-6 fw-bold text-success">{{ nodes_active }}</span>
+                        <div class="small text-muted">Active</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="display-6 fw-bold text-secondary">{{ nodes_total }}</span>
+                        <div class="small text-muted">Total</div>
+                    </div>
                 </div>
-                <div class="text-muted small">
-                    <p class="mb-1"><strong>Total Secrets:</strong> {{ total_secrets }}</p>
-                    <p class="mb-0"><strong>Dashboard Version:</strong> 0.1.0 (Django)</p>
+                
+                {% if recent_nodes %}
+                <hr>
+                <div class="list-group list-group-flush">
+                    {% for node in recent_nodes %}
+                    <a href="{% url 'jobs:node_detail' node.name %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-transparent">
+                        <div>
+                            <i class="bi bi-hdd me-2"></i>
+                            <strong>{{ node.name }}</strong>
+                            <small class="text-muted ms-2">{{ node.host }}</small>
+                        </div>
+                        {% if node.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
                 </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                    No worker nodes configured
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
+    
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal me-2"></i>Jobs</span>
+                <a href="{% url 'jobs:list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <span class="display-6 fw-bold text-primary">{{ jobs_running }}</span>
+                        <div class="small text-muted">Running</div>
+                    </div>
+                    <div class="col-4">
+                        <span class="display-6 fw-bold text-warning">{{ jobs_queued }}</span>
+                        <div class="small text-muted">Queued</div>
+                    </div>
+                    <div class="col-4">
+                        {% if success_rate is not None %}
+                        <span class="display-6 fw-bold {% if success_rate >= 80 %}text-success{% elif success_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ success_rate }}%</span>
+                        <div class="small text-muted">Success Rate</div>
+                        {% else %}
+                        <span class="display-6 fw-bold text-secondary">-</span>
+                        <div class="small text-muted">Success Rate</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if recent_jobs %}
+                <hr>
+                <div class="list-group list-group-flush">
+                    {% for job in recent_jobs %}
+                    <a href="{% url 'jobs:detail' job.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-transparent">
+                        <div>
+                            {% if job.status == 'succeeded' %}
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            {% elif job.status == 'failed' %}
+                            <i class="bi bi-x-circle text-danger me-2"></i>
+                            {% elif job.status == 'running' %}
+                            <i class="bi bi-hourglass-split text-primary me-2"></i>
+                            {% else %}
+                            <i class="bi bi-clock text-secondary me-2"></i>
+                            {% endif %}
+                            <code class="small">{{ job.command|truncatechars:30 }}</code>
+                        </div>
+                        <small class="text-muted">{{ job.created_at|timesince }} ago</small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                    No jobs yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secrets Stats Row (Dynamic) -->
+<div class="row g-4 mb-4">
+    {% for cat in secret_categories %}
+    <div class="col-md-3 col-sm-6">
+        <div class="card stat-card">
+            <div class="stat-value" style="color: {{ cat.color }};">{{ cat.count }}</div>
+            <div class="stat-label">
+                <i class="bi bi-{{ cat.icon }} me-1"></i>{{ cat.name }} Secrets
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">No secret categories configured.</div>
+    </div>
+    {% endfor %}
 </div>
 
 <!-- Monitoring Data -->
@@ -93,4 +232,3 @@
 </div>
 {% endif %}
 {% endblock %}
-

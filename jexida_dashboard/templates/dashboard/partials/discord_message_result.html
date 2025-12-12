@@ -1,0 +1,17 @@
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle me-2"></i>
+    <strong>Message Sent!</strong>
+    <span class="text-muted ms-2">ID: {{ result.message_id }}</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% else %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-x-circle me-2"></i>
+    <strong>Failed to send message</strong>
+    <br>
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+

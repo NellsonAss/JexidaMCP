@@ -1,0 +1,38 @@
+<tr id="request-{{ request.id }}">
+    <td><code>{{ request.suggested_name }}</code></td>
+    <td>{{ request.suggested_description|truncatechars:80 }}</td>
+    <td>
+        {% if request.resolved %}
+        <span class="badge bg-success">
+            <i class="bi bi-check-circle me-1"></i>Resolved
+        </span>
+        {% else %}
+        <span class="badge bg-warning text-dark">
+            <i class="bi bi-hourglass-split me-1"></i>Pending
+        </span>
+        {% endif %}
+    </td>
+    <td>{{ request.created_at|date:"M d, H:i" }}</td>
+    <td>
+        {% if not request.resolved %}
+        <button 
+            class="btn btn-sm btn-outline-success"
+            hx-post="{% url 'mcp_tools:request_resolve' request.id %}"
+            hx-target="#request-{{ request.id }}"
+            hx-swap="outerHTML"
+            title="Mark as resolved"
+        >
+            <i class="bi bi-check"></i>
+        </button>
+        {% endif %}
+        <button 
+            class="btn btn-sm btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#detailModal{{ request.id }}"
+            title="View details"
+        >
+            <i class="bi bi-eye"></i>
+        </button>
+    </td>
+</tr>
+

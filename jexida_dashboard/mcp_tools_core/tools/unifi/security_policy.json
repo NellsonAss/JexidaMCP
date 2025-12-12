@@ -1,0 +1,304 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UniFi Network Security Policy",
+  "description": "Comprehensive hardening policy for UniFi networks - covers all 9 security sections",
+  "version": "2.0.0",
+
+  "section_1_vlan_architecture": {
+    "id": "VLAN",
+    "title": "VLAN & Network Architecture Hardening",
+    
+    "require_segmentation": {
+      "id": "VLAN-1.1",
+      "enabled": true,
+      "severity": "high",
+      "description": "Network segmentation must exist (LAN, IoT, Guest, etc.)",
+      "required_vlans": ["LAN", "IoT", "Guest"],
+      "recommended_vlans": ["Cameras", "Work"]
+    },
+    
+    "no_cross_vlan_routing": {
+      "id": "VLAN-1.2",
+      "enabled": true,
+      "severity": "high",
+      "description": "No cross-VLAN routing except with explicit rules",
+      "blocked_routes": [
+        {"from": "IoT", "to": "LAN"},
+        {"from": "Guest", "to": "LAN"},
+        {"from": "Cameras", "to": "LAN"}
+      ]
+    },
+    
+    "guest_network_isolation": {
+      "id": "VLAN-1.3",
+      "enabled": true,
+      "severity": "high",
+      "description": "Guest network must be fully isolated",
+      "require_client_isolation": true,
+      "require_separate_vlan": true,
+      "block_lan_access": true
+    }
+  },
+
+  "section_2_wifi": {
+    "id": "WIFI",
+    "title": "WiFi Hardening",
+    
+    "enforce_wpa3": {
+      "id": "WIFI-2.1",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Enforce WPA3 where device support allows",
+      "fallback_allowed": "WPA2-WPA3",
+      "minimum_required": "WPA2"
+    },
+    
+    "require_pmf": {
+      "id": "WIFI-2.2",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Require Protected Management Frames for modern security",
+      "mode": "required"
+    },
+    
+    "disable_legacy_80211b": {
+      "id": "WIFI-2.3",
+      "enabled": true,
+      "severity": "low",
+      "description": "Disable legacy 802.11b support for performance and security"
+    },
+    
+    "iot_wifi_vlan": {
+      "id": "WIFI-2.4",
+      "enabled": true,
+      "severity": "medium",
+      "description": "IoT WiFi must use dedicated VLAN",
+      "iot_ssid_patterns": ["IoT", "Smart", "Device"]
+    },
+    
+    "require_encryption": {
+      "id": "WIFI-2.5",
+      "enabled": true,
+      "severity": "critical",
+      "description": "All WiFi networks must use encryption",
+      "allowed_open_ssids": []
+    }
+  },
+
+  "section_3_firewall": {
+    "id": "FW",
+    "title": "Firewall Hardening",
+    
+    "explicit_deny_untrusted": {
+      "id": "FW-3.1",
+      "enabled": true,
+      "severity": "high",
+      "description": "Explicit deny rules for untrusted VLANs to LAN",
+      "required_denies": [
+        {"from": "IoT", "to": "LAN"},
+        {"from": "Guest", "to": "LAN"},
+        {"from": "Cameras", "to": "LAN"}
+      ]
+    },
+    
+    "block_inter_vlan": {
+      "id": "FW-3.2",
+      "enabled": true,
+      "severity": "high",
+      "description": "Block inter-VLAN unless specifically needed",
+      "default_action": "drop"
+    },
+    
+    "validate_rule_chains": {
+      "id": "FW-3.3",
+      "enabled": true,
+      "severity": "high",
+      "description": "Validate LAN_IN, LAN_LOCAL, GUEST_IN chains",
+      "check_shadowed_rules": true,
+      "check_misplaced_allows": true
+    },
+    
+    "block_vpn_bypass": {
+      "id": "FW-3.4",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Block private VPN bypass attempts"
+    },
+    
+    "flag_allow_all_rules": {
+      "id": "FW-3.5",
+      "enabled": true,
+      "severity": "high",
+      "description": "Flag overly permissive allow-any rules"
+    }
+  },
+
+  "section_4_threat_management": {
+    "id": "THREAT",
+    "title": "Threat Management (IDS/IPS) Hardening",
+    
+    "require_ids_ips": {
+      "id": "THREAT-4.1",
+      "enabled": true,
+      "severity": "high",
+      "description": "IDS/IPS must be enabled at minimum",
+      "recommended_mode": "ips"
+    },
+    
+    "enable_threat_categories": {
+      "id": "THREAT-4.2",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Enable Suricata-based threat categories",
+      "recommended_categories": [
+        "malware",
+        "botnet",
+        "exploit",
+        "ssh_brute_force",
+        "dns_tunneling"
+      ]
+    },
+    
+    "block_tor_proxy_vpn": {
+      "id": "THREAT-4.3",
+      "enabled": false,
+      "severity": "low",
+      "description": "Block known TOR/Proxy/VPN exit nodes"
+    }
+  },
+
+  "section_5_dns_dhcp": {
+    "id": "DNS",
+    "title": "DNS / DHCP Protection",
+    
+    "require_secure_dns": {
+      "id": "DNS-5.1",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Require known, secure DNS (Cloudflare, Quad9, or Pi-hole)",
+      "trusted_dns_servers": [
+        "1.1.1.1",
+        "1.0.0.1",
+        "8.8.8.8",
+        "8.8.4.4",
+        "9.9.9.9",
+        "149.112.112.112"
+      ]
+    },
+    
+    "limit_dhcp_range": {
+      "id": "DNS-5.2",
+      "enabled": true,
+      "severity": "low",
+      "description": "Prevent wide DHCP ranges that could be exhausted",
+      "max_pool_size_percent": 80
+    },
+    
+    "disable_upnp": {
+      "id": "DNS-5.3",
+      "enabled": true,
+      "severity": "high",
+      "description": "Disable UPnP unless explicitly needed"
+    }
+  },
+
+  "section_6_switch_ap": {
+    "id": "SWITCH",
+    "title": "Switch, PoE, & AP Hardening",
+    
+    "disable_unused_ports": {
+      "id": "SWITCH-6.1",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Disable unused switch ports",
+      "zero_traffic_threshold_hours": 168
+    },
+    
+    "validate_poe": {
+      "id": "SWITCH-6.2",
+      "enabled": true,
+      "severity": "low",
+      "description": "Ensure PoE is appropriate for connected devices"
+    },
+    
+    "check_channel_overlap": {
+      "id": "SWITCH-6.3",
+      "enabled": false,
+      "severity": "low",
+      "description": "Check for AP channel overlap (informational only)"
+    }
+  },
+
+  "section_7_remote_access": {
+    "id": "REMOTE",
+    "title": "Remote Access & Admin Hardening",
+    
+    "require_mfa": {
+      "id": "REMOTE-7.1",
+      "enabled": true,
+      "severity": "high",
+      "description": "MFA should be enabled for admin accounts"
+    },
+    
+    "disable_device_ssh": {
+      "id": "REMOTE-7.2",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Disable SSH on devices unless required"
+    },
+    
+    "disable_wan_ui": {
+      "id": "REMOTE-7.3",
+      "enabled": true,
+      "severity": "high",
+      "description": "Disable WAN UI access, only allow LAN admin"
+    },
+    
+    "disable_cloud_access": {
+      "id": "REMOTE-7.4",
+      "enabled": false,
+      "severity": "low",
+      "description": "Disable UniFi cloud remote access"
+    }
+  },
+
+  "section_8_backup_drift": {
+    "id": "BACKUP",
+    "title": "Backups, Snapshots, & Drift Protection",
+    
+    "require_regular_backups": {
+      "id": "BACKUP-8.1",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Automatic regular backups",
+      "schedule": {
+        "daily": true,
+        "weekly": true,
+        "pre_change": true
+      }
+    },
+    
+    "drift_detection": {
+      "id": "BACKUP-8.2",
+      "enabled": true,
+      "severity": "medium",
+      "description": "Compare current config with last approved version",
+      "alert_on_change": true
+    }
+  },
+
+  "risk_scoring": {
+    "critical_weight": 10,
+    "high_weight": 5,
+    "medium_weight": 2,
+    "low_weight": 1,
+    "thresholds": {
+      "excellent": 0,
+      "good": 10,
+      "fair": 25,
+      "poor": 50,
+      "critical": 100
+    }
+  }
+}
+

@@ -12,3 +12,20 @@ dj-database-url>=2.0.0
 # Already in main requirements but needed
 cryptography>=41.0.0
 
+# HTTP client for external APIs
+httpx>=0.25.0
+
+# YAML parsing for config files
+PyYAML>=6.0.0
+
+# Azure SDK packages
+azure-identity>=1.15.0
+azure-mgmt-resource>=23.0.0
+azure-mgmt-web>=7.0.0
+azure-mgmt-storage>=21.0.0
+azure-mgmt-sql>=4.0.0
+azure-mgmt-monitor>=6.0.0
+azure-monitor-query>=1.2.0
+azure-mgmt-resourcegraph>=8.0.0
+azure-mgmt-costmanagement>=4.0.0
+

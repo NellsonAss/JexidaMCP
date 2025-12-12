@@ -13,6 +13,7 @@ class Secret(models.Model):
         ("azure", "Azure"),
         ("unifi", "UniFi"),
         ("synology", "Synology"),
+        ("n8n", "n8n Automation"),
         ("generic", "Generic"),
     ]
     

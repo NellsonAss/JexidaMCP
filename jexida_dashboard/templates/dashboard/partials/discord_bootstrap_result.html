@@ -1,0 +1,86 @@
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle me-2"></i>
+    <strong>{% if dry_run %}Bootstrap Preview{% else %}Bootstrap Complete!{% endif %}</strong>
+    
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <h6 class="text-success"><i class="bi bi-folder-plus me-1"></i>Categories</h6>
+            {% if result.categories_created %}
+            <ul class="list-unstyled mb-0">
+                {% for cat in result.categories_created %}
+                <li><i class="bi bi-plus-circle text-success me-1"></i>{{ cat }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if result.categories_existing %}
+            <ul class="list-unstyled mb-0 text-muted">
+                {% for cat in result.categories_existing %}
+                <li><i class="bi bi-check text-muted me-1"></i>{{ cat }} (exists)</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        <div class="col-md-4">
+            <h6 class="text-success"><i class="bi bi-hash me-1"></i>Channels</h6>
+            {% if result.channels_created %}
+            <ul class="list-unstyled mb-0">
+                {% for ch in result.channels_created %}
+                <li><i class="bi bi-plus-circle text-success me-1"></i>{{ ch }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if result.channels_existing %}
+            <ul class="list-unstyled mb-0 text-muted">
+                {% for ch in result.channels_existing %}
+                <li><i class="bi bi-check text-muted me-1"></i>{{ ch }} (exists)</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        <div class="col-md-4">
+            <h6 class="text-success"><i class="bi bi-person-badge me-1"></i>Roles</h6>
+            {% if result.roles_created %}
+            <ul class="list-unstyled mb-0">
+                {% for role in result.roles_created %}
+                <li><i class="bi bi-plus-circle text-success me-1"></i>{{ role }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if result.roles_existing %}
+            <ul class="list-unstyled mb-0 text-muted">
+                {% for role in result.roles_existing %}
+                <li><i class="bi bi-check text-muted me-1"></i>{{ role }} (exists)</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if result.errors %}
+    <hr>
+    <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Errors</h6>
+    <ul class="list-unstyled mb-0">
+        {% for err in result.errors %}
+        <li class="text-danger"><i class="bi bi-x-circle me-1"></i>{{ err }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    
+    {% if dry_run %}
+    <hr>
+    <small class="text-warning"><i class="bi bi-info-circle me-1"></i>This was a preview. Click "Run Bootstrap" to apply changes.</small>
+    {% endif %}
+    
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% else %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-x-circle me-2"></i>
+    <strong>Bootstrap Failed</strong>
+    <br>
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+

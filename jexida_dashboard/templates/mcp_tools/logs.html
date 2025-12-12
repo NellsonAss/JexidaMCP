@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-journal-text me-2"></i>Execution Logs</h1>
+        <p class="text-muted">Recent tool executions</p>
+    </div>
+    <div>
+        <a href="{% url 'mcp_tools:list' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Tools
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'mcp_tools:logs' %}">All Tools</option>
+            {% for tool_name in tools %}
+            <option value="{% url 'mcp_tools:logs' %}?tool={{ tool_name }}" {% if tool_filter == tool_name %}selected{% endif %}>{{ tool_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'mcp_tools:logs' %}{% if tool_filter %}?tool={{ tool_filter }}{% endif %}">All Results</option>
+            <option value="{% url 'mcp_tools:logs' %}?success=true{% if tool_filter %}&tool={{ tool_filter }}{% endif %}" {% if success_filter == 'true' %}selected{% endif %}>Success Only</option>
+            <option value="{% url 'mcp_tools:logs' %}?success=false{% if tool_filter %}&tool={{ tool_filter }}{% endif %}" {% if success_filter == 'false' %}selected{% endif %}>Failures Only</option>
+        </select>
+    </div>
+</div>
+
+<!-- Logs Table -->
+<div class="card">
+    <div class="card-body">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Run At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td><code>{{ log.tool.name }}</code></td>
+                        <td>
+                            {% if log.success %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>Success
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle me-1"></i>Failed
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.duration_ms %}
+                                {% if log.duration_ms < 1000 %}
+                                {{ log.duration_ms }}ms
+                                {% else %}
+                                {{ log.duration_ms|floatformat:0 }}ms
+                                {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ log.run_at|date:"M d, H:i:s" }}</td>
+                        <td>
+                            <button 
+                                class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#logModal{{ log.id }}"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">
+            <i class="bi bi-journal display-4 d-block mb-3"></i>
+            No execution logs found.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Log Detail Modals -->
+{% for log in logs %}
+<div class="modal fade" id="logModal{{ log.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <code>{{ log.tool.name }}</code> - {{ log.run_at|date:"M d, H:i:s" }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    {% if log.success %}
+                    <span class="badge bg-success">Success</span>
+                    {% else %}
+                    <span class="badge bg-danger">Failed</span>
+                    {% endif %}
+                    {% if log.duration_ms %}
+                    <span class="badge bg-secondary ms-1">{{ log.duration_ms }}ms</span>
+                    {% endif %}
+                </div>
+                
+                <h6>Parameters</h6>
+                <pre class="bg-dark p-3 rounded" style="max-height: 200px; overflow: auto;"><code>{{ log.parameters|pprint }}</code></pre>
+                
+                {% if log.success %}
+                <h6>Result</h6>
+                <pre class="bg-dark p-3 rounded" style="max-height: 300px; overflow: auto;"><code>{{ log.result }}</code></pre>
+                {% else %}
+                <h6>Error</h6>
+                <pre class="bg-danger bg-opacity-25 p-3 rounded"><code>{{ log.error_message }}</code></pre>
+                {% endif %}
+                
+                {% if log.notes %}
+                <h6>Notes</h6>
+                <p class="text-muted">{{ log.notes }}</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+

@@ -1,0 +1,18 @@
+{% if success %}
+<div class="alert alert-success mb-0 small">
+    <i class="bi bi-check-circle me-1"></i>
+    Tool executed successfully
+    {% if tool.last_run %}
+    <br><small class="text-muted">{{ tool.last_run|timesince }} ago</small>
+    {% endif %}
+</div>
+{% if result %}
+<pre class="bg-dark p-2 rounded mt-2 small mb-0" style="max-height: 200px; overflow: auto;"><code>{{ result }}</code></pre>
+{% endif %}
+{% else %}
+<div class="alert alert-danger mb-0 small">
+    <i class="bi bi-x-circle me-1"></i>
+    {{ error }}
+</div>
+{% endif %}
+

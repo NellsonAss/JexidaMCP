@@ -284,6 +284,34 @@ class UniFiClient:
         
         return devices
     
+    async def get_clients(self) -> List[Dict[str, Any]]:
+        """Get all connected client devices (WiFi and wired).
+        
+        Returns:
+            List of client devices with connection details
+        """
+        raw_clients = await self._get("stat/sta")
+        clients = []
+        
+        for client in raw_clients:
+            clients.append({
+                "name": client.get("name") or client.get("hostname") or client.get("mac", "Unknown"),
+                "hostname": client.get("hostname", ""),
+                "mac": client.get("mac", ""),
+                "ip": client.get("ip", ""),
+                "is_wired": client.get("is_wired", False),
+                "network": client.get("essid") or client.get("network", ""),
+                "signal": client.get("signal", 0),
+                "rssi": client.get("rssi", 0),
+                "tx_bytes": client.get("tx_bytes", 0),
+                "rx_bytes": client.get("rx_bytes", 0),
+                "uptime_seconds": client.get("uptime", 0),
+                "last_seen": client.get("last_seen", 0),
+                "ap_mac": client.get("ap_mac", ""),
+            })
+        
+        return clients
+    
     @staticmethod
     def _classify_device_type(unifi_type: str) -> str:
         """Map UniFi device type to normalized type."""

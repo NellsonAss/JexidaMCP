@@ -1,0 +1,21 @@
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle me-2"></i>
+    <strong>Connection Successful!</strong>
+    <br>
+    Connected to: <strong>{{ result.name }}</strong> (ID: {{ result.guild_id }})
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% else %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-x-circle me-2"></i>
+    <strong>Connection Failed</strong>
+    <br>
+    {{ error }}
+    {% if 'not configured' in error or 'missing' in error %}
+    <br><small>Set <code>DISCORD_BOT_TOKEN</code> and <code>DISCORD_GUILD_ID</code> environment variables.</small>
+    {% endif %}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+

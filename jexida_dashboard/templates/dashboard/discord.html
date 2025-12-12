@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-discord me-2" style="color: #5865F2;"></i>Discord</h1>
+    <p class="text-muted">Discord Bot Management</p>
+</div>
+
+<!-- Connection Status -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-plug me-2"></i>Connection Status
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center border-end">
+                        {% if discord_status.connected %}
+                        <div class="text-success mb-2">
+                            <i class="bi bi-check-circle-fill display-5"></i>
+                        </div>
+                        <h6 class="text-success">Connected</h6>
+                        <small class="text-muted">Bot Online</small>
+                        {% else %}
+                        <div class="text-danger mb-2">
+                            <i class="bi bi-x-circle-fill display-5"></i>
+                        </div>
+                        <h6 class="text-danger">Disconnected</h6>
+                        {% if discord_status.is_config_error %}
+                        <small class="text-warning">Configuration needed</small>
+                        {% else %}
+                        <small class="text-muted">{{ discord_status.error|truncatechars:50 }}</small>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-center border-end">
+                        {% if discord_status.connected %}
+                        <div class="mb-2" style="color: #5865F2;">
+                            <i class="bi bi-server display-5"></i>
+                        </div>
+                        <h6>{{ discord_status.guild_name }}</h6>
+                        <small class="text-muted">Guild ID: {{ discord_status.guild_id|truncatechars:15 }}</small>
+                        {% else %}
+                        <div class="text-secondary mb-2">
+                            <i class="bi bi-server display-5"></i>
+                        </div>
+                        <h6 class="text-muted">No Server</h6>
+                        <small class="text-muted">Not connected</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="text-info mb-2">
+                            <span class="display-5 fw-bold">{{ discord_tools.count }}</span>
+                        </div>
+                        <h6>Discord Tools</h6>
+                        <small class="text-muted">Available</small>
+                    </div>
+                </div>
+                
+                {% if not discord_status.connected and discord_status.is_config_error %}
+                <hr>
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Configuration Required:</strong> Set <code>DISCORD_BOT_TOKEN</code> and <code>DISCORD_GUILD_ID</code> environment variables on the server.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary"
+                            hx-post="{% url 'dashboard:discord_test' %}"
+                            hx-target="#action-result"
+                            hx-indicator="#action-spinner">
+                        <i class="bi bi-plug me-2"></i>Test Connection
+                    </button>
+                    <button class="btn btn-outline-primary"
+                            hx-post="{% url 'dashboard:discord_bootstrap' %}?dry_run=true"
+                            hx-target="#action-result"
+                            hx-indicator="#action-spinner"
+                            {% if not discord_status.connected %}disabled{% endif %}>
+                        <i class="bi bi-eye me-2"></i>Preview Bootstrap
+                    </button>
+                    <button class="btn btn-success"
+                            hx-post="{% url 'dashboard:discord_bootstrap' %}"
+                            hx-target="#action-result"
+                            hx-indicator="#action-spinner"
+                            hx-confirm="This will create categories, channels, and roles in your Discord server. Continue?"
+                            {% if not discord_status.connected %}disabled{% endif %}>
+                        <i class="bi bi-rocket me-2"></i>Run Bootstrap
+                    </button>
+                </div>
+                <div id="action-spinner" class="htmx-indicator text-center mt-3">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Result -->
+<div id="action-result" class="mb-4"></div>
+
+{% if discord_status.connected %}
+<!-- Server Structure -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-folder me-2"></i>Categories
+                <span class="badge bg-primary float-end">{{ categories|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                <ul class="list-group list-group-flush">
+                    {% for cat in categories %}
+                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-folder2 me-2"></i>{{ cat.name }}</span>
+                        <small class="text-muted">{{ cat.id|truncatechars:8 }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center mb-0">No categories found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-hash me-2"></i>Text Channels
+                <span class="badge bg-primary float-end">{{ text_channels|length }}</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if text_channels %}
+                <ul class="list-group list-group-flush">
+                    {% for ch in text_channels %}
+                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-hash me-2"></i>{{ ch.name }}</span>
+                        <small class="text-muted">{{ ch.id|truncatechars:8 }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center mb-0">No text channels found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-person-badge me-2"></i>Roles
+                <span class="badge bg-primary float-end">{{ custom_roles|length }}</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if custom_roles %}
+                <ul class="list-group list-group-flush">
+                    {% for role in custom_roles %}
+                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center">
+                        <span>
+                            {% if role.hoist %}<i class="bi bi-star-fill text-warning me-1"></i>{% endif %}
+                            <span {% if role.color %}style="color: #{{ role.color|stringformat:'06x' }};"{% endif %}>
+                                {{ role.name }}
+                            </span>
+                        </span>
+                        <small class="text-muted">{{ role.id|truncatechars:8 }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center mb-0">No custom roles found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Message -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-chat-dots me-2"></i>Send Message
+            </div>
+            <div class="card-body">
+                <form hx-post="{% url 'dashboard:discord_send_message' %}" 
+                      hx-target="#message-result"
+                      hx-indicator="#message-spinner">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Channel</label>
+                            <select name="channel_id" class="form-select" required>
+                                <option value="">Select a channel...</option>
+                                {% for ch in text_channels %}
+                                <option value="{{ ch.id }}">#{{ ch.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Message</label>
+                            <input type="text" name="content" class="form-control" 
+                                   placeholder="Enter your message..." required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-send me-1"></i>Send
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div id="message-spinner" class="htmx-indicator text-center mt-3">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Sending...
+                </div>
+                <div id="message-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Available Tools -->
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-tools me-2"></i>Discord MCP Tools
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tool</th>
+                                <th>Description</th>
+                                <th>Last Run</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tool in discord_tools %}
+                            <tr>
+                                <td><code>{{ tool.name }}</code></td>
+                                <td>{{ tool.description|truncatechars:60 }}</td>
+                                <td>
+                                    {% if tool.last_run %}
+                                    {{ tool.last_run|timesince }} ago
+                                    {% else %}
+                                    <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No Discord tools registered</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

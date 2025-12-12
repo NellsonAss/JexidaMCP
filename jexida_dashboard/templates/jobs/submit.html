@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'jobs:list' %}">Jobs</a></li>
+            <li class="breadcrumb-item active">Submit Job</li>
+        </ol>
+    </nav>
+    <h1><i class="bi bi-plus-lg me-2"></i>Submit Job</h1>
+    <p class="text-muted">Execute a command on a worker node</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="node_name" class="form-label">Worker Node</label>
+                        <select class="form-select" id="node_name" name="node_name" required>
+                            <option value="">Select a node...</option>
+                            {% for node in nodes %}
+                            <option value="{{ node.name }}" {% if request.GET.node == node.name %}selected{% endif %}>
+                                {{ node.name }} ({{ node.host }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Choose the worker node to execute the command on</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description <span class="text-muted">(optional)</span></label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                               placeholder="e.g., Update system packages" value="{{ request.GET.description }}">
+                        <div class="form-text">Brief description of what this job does</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="command" class="form-label">Command</label>
+                        <textarea class="form-control font-monospace" id="command" name="command" rows="4" 
+                                  placeholder="ls -la /opt" required>{{ command }}{{ request.GET.command }}</textarea>
+                        <div class="form-text">Shell command to execute on the worker node</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="timeout" class="form-label">Timeout (seconds)</label>
+                        <input type="number" class="form-control" id="timeout" name="timeout" value="300" min="10" max="3600">
+                        <div class="form-text">Maximum time to wait for the command to complete (default: 5 minutes)</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'jobs:list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-play-fill me-1"></i>Submit Job
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if nodes|length == 0 %}
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>No worker nodes available.</strong> 
+            You need to add at least one active worker node before submitting jobs.
+            <a href="{% url 'jobs:nodes' %}">Manage nodes</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -40,6 +40,8 @@ Thumbs.db
 # Jexida specific
 *.log
 *.db
+*.db-shm
+*.db-wal
 .env
 .env.local
 

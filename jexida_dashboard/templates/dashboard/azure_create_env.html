@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:azure' %}">Azure</a></li>
+            <li class="breadcrumb-item active">Create App Environment</li>
+        </ol>
+    </nav>
+    <h1><i class="bi bi-cloud-plus me-2" style="color: #0078d4;"></i>Create App Environment</h1>
+    <p class="text-muted">Creates Resource Group + App Service Plan + Web App</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form 
+                    hx-post="{% url 'dashboard:azure_create_env' %}"
+                    hx-target="#result"
+                    hx-swap="innerHTML"
+                    hx-indicator="#loading"
+                >
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="base_name" class="form-label">Base Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="base_name" name="base_name" 
+                               placeholder="e.g., myapp, dd-staging" required pattern="[a-z0-9\-]+"
+                               title="Lowercase letters, numbers, and hyphens only">
+                        <div class="form-text">
+                            Used to generate resource names: rg-{base_name}-{env}, plan-{base_name}-{env}, etc.
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="location" name="location" required>
+                                {% for loc in locations %}
+                                <option value="{{ loc.id }}" {% if loc.id == "eastus" %}selected{% endif %}>
+                                    {{ loc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="environment" class="form-label">Environment</label>
+                            <select class="form-select" id="environment" name="environment">
+                                <option value="dev" selected>Development</option>
+                                <option value="staging">Staging</option>
+                                <option value="prod">Production</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Tags Section -->
+                    <div class="mb-3">
+                        <label class="form-label">Tags <span class="text-muted">(optional)</span></label>
+                        <div id="tags-container">
+                            <div class="row mb-2">
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" name="tag_key" placeholder="Key">
+                                </div>
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" name="tag_value" placeholder="Value">
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addTagRow()">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">Standard tags (system, environment, managed-by) are added automatically.</div>
+                    </div>
+                    
+                    <!-- Resource Preview -->
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="bi bi-info-circle me-1"></i>Resources to be created:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Resource Group: <code id="preview-rg">rg-{base_name}-{env}</code></li>
+                            <li>App Service Plan: <code id="preview-plan">plan-{base_name}-{env}</code> (B1 Linux)</li>
+                            <li>Web App: <code id="preview-app">{base_name}-{env}</code>.azurewebsites.net</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'dashboard:azure' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <span id="loading" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                            <i class="bi bi-cloud-plus me-1"></i>Create Environment
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="result" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addTagRow() {
+    const container = document.getElementById('tags-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2';
+    newRow.innerHTML = `
+        <div class="col-5">
+            <input type="text" class="form-control form-control-sm" name="tag_key" placeholder="Key">
+        </div>
+        <div class="col-5">
+            <input type="text" class="form-control form-control-sm" name="tag_value" placeholder="Value">
+        </div>
+        <div class="col-2">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+}
+
+// Update preview on input
+document.getElementById('base_name').addEventListener('input', updatePreview);
+document.getElementById('environment').addEventListener('change', updatePreview);
+
+function updatePreview() {
+    const baseName = document.getElementById('base_name').value || '{base_name}';
+    const env = document.getElementById('environment').value || '{env}';
+    document.getElementById('preview-rg').textContent = `rg-${baseName}-${env}`;
+    document.getElementById('preview-plan').textContent = `plan-${baseName}-${env}`;
+    document.getElementById('preview-app').textContent = `${baseName}-${env}`;
+}
+</script>
+{% endblock %}
+

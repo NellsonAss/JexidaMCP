@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-lightbulb me-2"></i>Knowledge Store</h1>
+        <p class="text-muted">Persistent facts learned by the MCP</p>
+    </div>
+    <div>
+        <a href="{% url 'mcp_tools:list' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Tools
+        </a>
+    </div>
+</div>
+
+<!-- Filter by source -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'mcp_tools:facts' %}">All Sources</option>
+            {% for source in sources %}
+            <option value="{% url 'mcp_tools:facts' %}?source={{ source }}" {% if source_filter == source %}selected{% endif %}>{{ source }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Facts Table -->
+<div class="card">
+    <div class="card-body">
+        {% if facts %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Source</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fact in facts %}
+                    <tr>
+                        <td><code>{{ fact.key }}</code></td>
+                        <td>
+                            <button 
+                                class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#factModal{{ fact.id }}"
+                            >
+                                <i class="bi bi-eye me-1"></i>View
+                            </button>
+                        </td>
+                        <td>
+                            {% if fact.source %}
+                            <span class="badge bg-info">{{ fact.source }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ fact.updated_at|date:"M d, H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">
+            <i class="bi bi-lightbulb display-4 d-block mb-3"></i>
+            No facts stored yet. Facts are learned as tools are executed.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Fact Detail Modals -->
+{% for fact in facts %}
+<div class="modal fade" id="factModal{{ fact.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <code>{{ fact.key }}</code>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre class="bg-dark p-3 rounded" style="max-height: 400px; overflow: auto;"><code>{{ fact.value|pprint }}</code></pre>
+                
+                <div class="text-muted small mt-3">
+                    Source: {{ fact.source|default:"unknown" }}<br>
+                    Learned: {{ fact.learned_at }}<br>
+                    Updated: {{ fact.updated_at }}
+                    {% if fact.expires_at %}
+                    <br>Expires: {{ fact.expires_at }}
+                    {% if fact.is_expired %}
+                    <span class="badge bg-danger ms-1">Expired</span>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+

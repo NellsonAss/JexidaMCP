@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-heart-fill me-2" style="color: #f96854;"></i>Patreon</h1>
+        <p class="text-muted">Patron management and campaign analytics</p>
+    </div>
+    {% if patreon_status.connected %}
+    <div class="btn-group">
+        <a href="{% url 'dashboard:patreon_export' %}?format=csv&status_filter=active_patron" 
+           class="btn btn-outline-primary">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </a>
+        <a href="{% url 'dashboard:patreon_export' %}?format=json" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-filetype-json me-1"></i>Export JSON
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Connection Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-plug me-2"></i>Connection Status</h5>
+                <a href="{% url 'dashboard:patreon' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </a>
+            </div>
+            <div class="card-body">
+                {% if patreon_status.connected %}
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2" style="font-size: 0.9rem;">
+                        <i class="bi bi-check-circle me-1"></i>Connected
+                    </span>
+                    <span class="text-muted">{{ patreon_status.creator_name }}</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Creator</small>
+                        <strong>{{ patreon_status.creator_name }}</strong>
+                        <br><small class="text-muted">{{ patreon_status.creator_email }}</small>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Campaign</small>
+                        <strong>{{ patreon_status.campaign_name|default:"Unknown" }}</strong>
+                        <br><code class="text-muted">ID: {{ patreon_status.campaign_id|default:"N/A" }}</code>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Total Patrons</small>
+                        <strong style="color: #f96854; font-size: 1.5rem;">{{ patreon_status.patron_count|default:0 }}</strong>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Not Connected:</strong> 
+                    {{ patreon_status.error|default:"Patreon credentials not configured" }}
+                    {% if patreon_status.is_config_error %}
+                    <br><small class="text-muted">
+                        Set PATREON_ACCESS_TOKEN environment variable, or configure OAuth2 credentials.
+                        See <a href="https://www.patreon.com/portal/registration/register-clients" target="_blank">Patreon Developer Portal</a>.
+                    </small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if patreon_status.connected %}
+<!-- Tiers -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-layers me-2"></i>Tiers</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if tiers %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Tier</th>
+                    <th>Price</th>
+                    <th>Patrons</th>
+                    <th>Monthly Revenue</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tier in tiers %}
+                <tr>
+                    <td>
+                        <strong>{{ tier.title }}</strong>
+                        {% if tier.description %}
+                        <br><small class="text-muted">{{ tier.description|truncatechars:60 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-primary tier-price" data-cents="{{ tier.amount_cents }}">
+                            ${{ tier.amount_cents }}
+                        </span>
+                        <script>
+                            (function() {
+                                var el = document.currentScript.previousElementSibling;
+                                var cents = parseInt(el.dataset.cents) || 0;
+                                el.textContent = "$" + (cents / 100).toFixed(2);
+                            })();
+                        </script>
+                    </td>
+                    <td>{{ tier.patron_count }}</td>
+                    <td>
+                        <span style="color: #3fb950;" class="tier-revenue" 
+                              data-amount="{{ tier.amount_cents }}" 
+                              data-count="{{ tier.patron_count }}">
+                            $0.00
+                        </span>
+                        <script>
+                            (function() {
+                                var el = document.currentScript.previousElementSibling;
+                                var amount = parseInt(el.dataset.amount) || 0;
+                                var count = parseInt(el.dataset.count) || 0;
+                                el.textContent = "$" + ((amount * count) / 100).toFixed(2);
+                            })();
+                        </script>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary"
+                                hx-get="{% url 'dashboard:patreon_patrons' %}?tier_filter={{ tier.title|urlencode }}"
+                                hx-target="#patrons-list"
+                                hx-indicator="#patrons-loading">
+                            <i class="bi bi-people me-1"></i>View Patrons
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted text-center py-4 mb-0">No tiers found</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Patrons -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-people me-2"></i>Patrons</h5>
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select form-select-sm" style="width: auto;" id="patron-status-filter"
+                    hx-get="{% url 'dashboard:patreon_patrons' %}"
+                    hx-target="#patrons-list"
+                    hx-indicator="#patrons-loading"
+                    hx-include="#patron-tier-filter"
+                    name="status_filter">
+                <option value="">All Statuses</option>
+                <option value="active_patron">Active</option>
+                <option value="declined_patron">Declined</option>
+                <option value="former_patron">Former</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" style="width: 150px;" 
+                   placeholder="Filter by tier..."
+                   id="patron-tier-filter"
+                   name="tier_filter"
+                   hx-get="{% url 'dashboard:patreon_patrons' %}"
+                   hx-target="#patrons-list"
+                   hx-indicator="#patrons-loading"
+                   hx-trigger="keyup changed delay:500ms"
+                   hx-include="#patron-status-filter">
+            <button class="btn btn-sm btn-primary"
+                    hx-get="{% url 'dashboard:patreon_patrons' %}"
+                    hx-target="#patrons-list"
+                    hx-indicator="#patrons-loading"
+                    hx-include="#patron-status-filter,#patron-tier-filter">
+                <i class="bi bi-search me-1"></i>Search
+            </button>
+            <span id="patrons-loading" class="htmx-indicator">
+                <span class="spinner-border spinner-border-sm"></span>
+            </span>
+        </div>
+    </div>
+    <div class="card-body p-0" id="patrons-list">
+        <div class="text-center py-5">
+            <button class="btn btn-outline-primary"
+                    hx-get="{% url 'dashboard:patreon_patrons' %}"
+                    hx-target="#patrons-list"
+                    hx-indicator="#patrons-loading">
+                <i class="bi bi-arrow-down-circle me-2"></i>Load Patrons
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Available Tools -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Available Patreon Tools</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if patreon_tools %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tool in patreon_tools %}
+                <tr>
+                    <td><code>{{ tool.name }}</code></td>
+                    <td class="text-muted">{{ tool.description|truncatechars:80 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted text-center py-4 mb-0">No Patreon tools registered</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

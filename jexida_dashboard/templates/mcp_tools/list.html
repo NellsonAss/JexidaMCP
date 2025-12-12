@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-tools me-2"></i>MCP Tools</h1>
+        <p class="text-muted">{{ tool_count }} tools registered ({{ active_count }} active)</p>
+    </div>
+    <div>
+        <a href="{% url 'mcp_tools:requests' %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-inbox me-1"></i>Requests
+        </a>
+        <a href="{% url 'mcp_tools:facts' %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-lightbulb me-1"></i>Facts
+        </a>
+        <a href="{% url 'mcp_tools:logs' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-journal-text me-1"></i>Logs
+        </a>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'mcp_tools:list' %}">All Tags</option>
+            {% for tag in all_tags %}
+            <option value="{% url 'mcp_tools:list' %}?tag={{ tag }}" {% if tag_filter == tag %}selected{% endif %}>{{ tag }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'mcp_tools:list' %}{% if tag_filter %}?tag={{ tag_filter }}{% endif %}">All Status</option>
+            <option value="{% url 'mcp_tools:list' %}?active=true{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" {% if active_filter == 'true' %}selected{% endif %}>Active Only</option>
+            <option value="{% url 'mcp_tools:list' %}?active=false{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" {% if active_filter == 'false' %}selected{% endif %}>Inactive Only</option>
+        </select>
+    </div>
+</div>
+
+<!-- Tools Grid -->
+<div class="row">
+    {% for tool in tools %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 {% if not tool.is_active %}opacity-50{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <code>{{ tool.name }}</code>
+                </h6>
+                {% if tool.is_active %}
+                <span class="badge bg-success">Active</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="card-text small">{{ tool.description|truncatechars:150 }}</p>
+                
+                {% if tool.tags %}
+                <div class="mb-2">
+                    {% for tag in tool.get_tags_list %}
+                    <span class="badge bg-primary me-1">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="small text-muted">
+                    <i class="bi bi-play-circle me-1"></i>{{ tool.run_count }} runs
+                    {% if tool.last_run %}
+                    <span class="ms-2"><i class="bi bi-clock me-1"></i>{{ tool.last_run|timesince }} ago</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'mcp_tools:detail' tool.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-info-circle me-1"></i>Details
+                    </a>
+                    {% if tool.is_active %}
+                    <button 
+                        class="btn btn-sm btn-primary"
+                        hx-post="{% url 'mcp_tools:run' tool.id %}"
+                        hx-target="#result-{{ tool.id }}"
+                        hx-swap="innerHTML"
+                        hx-indicator="#spinner-{{ tool.id }}"
+                    >
+                        <span id="spinner-{{ tool.id }}" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                        <i class="bi bi-play-fill me-1"></i>Run
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="result-{{ tool.id }}" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            No tools found. Run migrations to seed initial tools, or create them via the admin panel.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{% url 'jobs:nodes' %}">Worker Nodes</a></li>
+                <li class="breadcrumb-item active">{{ node.name }}</li>
+            </ol>
+        </nav>
+        <h1><i class="bi bi-hdd me-2"></i>{{ node.name }}</h1>
+    </div>
+    <div>
+        {% if node.is_active %}
+        <span class="badge bg-success fs-5">Active</span>
+        {% else %}
+        <span class="badge bg-secondary fs-5">Inactive</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Node Info -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-1"></i>Node Information
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted" style="width: 120px;">Name</td>
+                        <td>{{ node.name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Host</td>
+                        <td><code>{{ node.host }}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">User</td>
+                        <td>{{ node.user }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">SSH Port</td>
+                        <td>{{ node.ssh_port }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Tags</td>
+                        <td>
+                            {% if node.tags %}
+                            {% for tag in node.get_tags_list %}
+                            <span class="badge bg-primary me-1">{{ tag }}</span>
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Last Seen</td>
+                        <td>
+                            {% if node.last_seen %}
+                            {{ node.last_seen }} ({{ node.last_seen|timesince }} ago)
+                            {% else %}
+                            <span class="text-muted">Never contacted</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Created</td>
+                        <td>{{ node.created_at }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="card-footer">
+                <button 
+                    class="btn btn-success"
+                    hx-get="{% url 'jobs:node_check' node.name %}?detailed=true"
+                    hx-target="#check-result"
+                    hx-indicator="#check-spinner"
+                >
+                    <span id="check-spinner" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                    <i class="bi bi-wifi me-1"></i>Check Connectivity
+                </button>
+                <a href="{% url 'jobs:submit' %}?node={{ node.name }}" class="btn btn-primary ms-2">
+                    <i class="bi bi-play-fill me-1"></i>Submit Job
+                </a>
+            </div>
+        </div>
+        
+        <!-- Connectivity Check Result -->
+        <div id="check-result"></div>
+    </div>
+    
+    <!-- Recent Jobs -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal me-1"></i>Recent Jobs</span>
+                <a href="{% url 'jobs:list' %}?node={{ node.name }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Status</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in recent_jobs %}
+                        <tr onclick="window.location='{% url 'jobs:detail' job.id %}'" style="cursor: pointer;">
+                            <td><code class="text-truncate d-inline-block" style="max-width: 150px;">{{ job.command|truncatechars:30 }}</code></td>
+                            <td>
+                                {% if job.status == 'succeeded' %}
+                                <span class="badge bg-success">OK</span>
+                                {% elif job.status == 'failed' %}
+                                <span class="badge bg-danger">Failed</span>
+                                {% elif job.status == 'running' %}
+                                <span class="badge bg-primary">Running</span>
+                                {% elif job.status == 'lost' %}
+                                <span class="badge bg-warning text-dark">Lost</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Queued</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">{{ job.created_at|timesince }} ago</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                No jobs run on this node yet
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'jobs:nodes' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Nodes
+    </a>
+</div>
+{% endblock %}
+

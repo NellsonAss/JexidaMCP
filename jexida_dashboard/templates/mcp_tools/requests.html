@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-inbox me-2"></i>Tool Requests</h1>
+        <p class="text-muted">{{ pending_count }} pending request(s)</p>
+    </div>
+    <div>
+        <a href="{% url 'mcp_tools:list' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Tools
+        </a>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if not resolved_filter %}active{% endif %}" href="{% url 'mcp_tools:requests' %}">All</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if resolved_filter == 'false' %}active{% endif %}" href="{% url 'mcp_tools:requests' %}?resolved=false">
+            Pending <span class="badge bg-warning">{{ pending_count }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if resolved_filter == 'true' %}active{% endif %}" href="{% url 'mcp_tools:requests' %}?resolved=true">Resolved</a>
+    </li>
+</ul>
+
+<!-- Requests Table -->
+<div class="card">
+    <div class="card-body">
+        {% if requests %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Suggested Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="requests-table">
+                    {% for req in requests %}
+                    <tr id="request-{{ req.id }}">
+                        <td><code>{{ req.suggested_name }}</code></td>
+                        <td>{{ req.suggested_description|truncatechars:80 }}</td>
+                        <td>
+                            {% if req.resolved %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>Resolved
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-hourglass-split me-1"></i>Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ req.created_at|date:"M d, H:i" }}</td>
+                        <td>
+                            {% if not req.resolved %}
+                            <button 
+                                class="btn btn-sm btn-outline-success"
+                                hx-post="{% url 'mcp_tools:request_resolve' req.id %}"
+                                hx-target="#request-{{ req.id }}"
+                                hx-swap="outerHTML"
+                                title="Mark as resolved"
+                            >
+                                <i class="bi bi-check"></i>
+                            </button>
+                            {% endif %}
+                            <button 
+                                class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#detailModal{{ req.id }}"
+                                title="View details"
+                            >
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">
+            <i class="bi bi-inbox display-4 d-block mb-3"></i>
+            No tool requests found.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detail Modals -->
+{% for req in requests %}
+<div class="modal fade" id="detailModal{{ req.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-lightbulb me-2"></i>{{ req.suggested_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Original Prompt</h6>
+                <p class="text-muted">{{ req.prompt }}</p>
+                
+                <h6>Suggested Description</h6>
+                <p>{{ req.suggested_description }}</p>
+                
+                {% if req.suggested_schema %}
+                <h6>Suggested Schema</h6>
+                <pre class="bg-dark p-3 rounded"><code>{{ req.suggested_schema|pprint }}</code></pre>
+                {% endif %}
+                
+                {% if req.notes %}
+                <h6>Notes</h6>
+                <p class="text-muted">{{ req.notes }}</p>
+                {% endif %}
+                
+                <div class="text-muted small">
+                    Created: {{ req.created_at }}
+                    {% if req.resolved %}
+                    <br>Resolved: {{ req.resolved_at }}
+                    {% if req.resolved_tool %}
+                    <br>Linked Tool: <code>{{ req.resolved_tool.name }}</code>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                {% if not req.resolved %}
+                <button 
+                    type="button" 
+                    class="btn btn-success"
+                    hx-post="{% url 'mcp_tools:request_resolve' req.id %}"
+                    hx-target="#request-{{ req.id }}"
+                    hx-swap="outerHTML"
+                    data-bs-dismiss="modal"
+                >
+                    <i class="bi bi-check-circle me-1"></i>Mark Resolved
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+

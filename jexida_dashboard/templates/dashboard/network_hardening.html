@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-shield-check me-2"></i>Network Hardening</h1>
+    <p class="text-muted">UniFi security evaluations and hardening tools</p>
+</div>
+
+{% if not tool_available %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Security audit tool not available.</strong>
+    The <code>security_audit_unifi</code> tool is not registered or active.
+    <a href="{% url 'mcp_tools:list' %}?tag=unifi" class="alert-link">Check UniFi tools</a>
+</div>
+{% endif %}
+
+<!-- Overview Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-5 text-primary">{{ evaluations|length }}</div>
+                <div class="text-muted">Security Checks</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                {% with pass_count=evaluations|length %}
+                <div class="display-5 text-success">
+                    {% for e in evaluations %}{% if e.last_status == 'pass' %}1{% endif %}{% endfor %}
+                </div>
+                {% endwith %}
+                <div class="text-muted">Passing</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-5 text-warning">
+                    {% for e in evaluations %}{% if e.last_status == 'findings' %}1{% endif %}{% endfor %}
+                </div>
+                <div class="text-muted">With Findings</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="display-5 text-secondary">
+                    {% for e in evaluations %}{% if e.last_status == 'never' %}1{% endif %}{% endfor %}
+                </div>
+                <div class="text-muted">Never Run</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluations Grid -->
+<div class="row g-4">
+    {% for eval in evaluations %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-{{ eval.icon }} me-2"></i>
+                    {{ eval.name }}
+                </span>
+                <span class="badge bg-secondary">Section {{ eval.section }}</span>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">{{ eval.description }}</p>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small text-muted">Status</span>
+                        {% if eval.last_status == 'pass' %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Pass
+                        </span>
+                        {% elif eval.last_status == 'findings' %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle me-1"></i>{{ eval.finding_count }} Findings
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-question-circle me-1"></i>Never Run
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if eval.last_run %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small text-muted">Last Run</span>
+                        <span class="small">{{ eval.last_run }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <button 
+                        class="btn btn-sm btn-primary"
+                        hx-post="{% url 'dashboard:run_evaluation' eval.id %}"
+                        hx-target="#result-{{ eval.id }}"
+                        hx-swap="innerHTML"
+                        hx-indicator="#spinner-{{ eval.id }}"
+                        {% if not tool_available %}disabled{% endif %}
+                    >
+                        <span id="spinner-{{ eval.id }}" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                        <i class="bi bi-play-fill me-1"></i>Run
+                    </button>
+                    
+                    {% if eval.last_run %}
+                    <button 
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#results-modal-{{ eval.id }}"
+                    >
+                        <i class="bi bi-eye me-1"></i>View
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="result-{{ eval.id }}" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Run All Button -->
+<div class="mt-4 text-center">
+    <button 
+        class="btn btn-lg btn-outline-primary"
+        id="run-all-btn"
+        {% if not tool_available %}disabled{% endif %}
+    >
+        <i class="bi bi-play-circle me-2"></i>Run Full Security Audit
+    </button>
+    <p class="small text-muted mt-2">
+        Runs all security evaluations sequentially. This may take a few minutes.
+    </p>
+</div>
+
+<!-- Info Card -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>About Network Hardening
+    </div>
+    <div class="card-body">
+        <p>
+            These evaluations analyze your UniFi network configuration against security best practices
+            from the 9-section hardening checklist. Each evaluation generates findings with severity
+            levels and remediation recommendations.
+        </p>
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <h6>Safe Operations</h6>
+                <ul class="small text-muted mb-0">
+                    <li>All evaluations are <strong>read-only</strong></li>
+                    <li>No changes are made to your network</li>
+                    <li>Results are stored for historical tracking</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Applying Fixes</h6>
+                <ul class="small text-muted mb-0">
+                    <li>Use the AI Assistant to apply recommendations</li>
+                    <li>All changes require explicit confirmation</li>
+                    <li>Dangerous operations show warnings</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('run-all-btn')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Running...';
+    
+    const evaluations = {{ evaluations|safe }};
+    
+    for (const eval of evaluations) {
+        try {
+            const response = await fetch(`/network-hardening/run/${eval.id}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            });
+            // Brief pause between evaluations
+            await new Promise(r => setTimeout(r, 500));
+        } catch (e) {
+            console.error(`Error running ${eval.id}:`, e);
+        }
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Complete - Refresh to see results';
+    
+    // Refresh page after 2 seconds
+    setTimeout(() => location.reload(), 2000);
+});
+</script>
+{% endblock %}
+

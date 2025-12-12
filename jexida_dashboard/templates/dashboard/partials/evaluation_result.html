@@ -1,0 +1,45 @@
+{% comment %}
+HTMX partial for displaying security evaluation results.
+{% endcomment %}
+
+{% if success %}
+<div class="alert alert-{% if findings %}warning{% else %}success{% endif %} mb-0 py-2">
+    {% if findings %}
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    <strong>{{ findings|length }} finding{{ findings|pluralize }}</strong>
+    {% if risk_score.rating %}
+    <span class="badge bg-{% if risk_score.rating == 'excellent' %}success{% elif risk_score.rating == 'good' %}info{% elif risk_score.rating == 'fair' %}warning{% else %}danger{% endif %} ms-2">
+        {{ risk_score.rating|title }}
+    </span>
+    {% endif %}
+    {% else %}
+    <i class="bi bi-check-circle me-1"></i>
+    <strong>No findings</strong> - Configuration looks good!
+    {% endif %}
+</div>
+
+{% if findings %}
+<div class="mt-2 small">
+    <ul class="list-unstyled mb-0">
+        {% for finding in findings|slice:":3" %}
+        <li class="mb-1">
+            <span class="badge bg-{% if finding.severity == 'critical' %}danger{% elif finding.severity == 'high' %}danger{% elif finding.severity == 'medium' %}warning{% else %}secondary{% endif %} me-1">
+                {{ finding.severity|default:"info" }}
+            </span>
+            {{ finding.title|default:finding.check_id|truncatechars:40 }}
+        </li>
+        {% endfor %}
+        {% if findings|length > 3 %}
+        <li class="text-muted">+ {{ findings|length|add:"-3" }} more...</li>
+        {% endif %}
+    </ul>
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-danger mb-0 py-2">
+    <i class="bi bi-x-circle me-1"></i>
+    <strong>Error:</strong> {{ error|truncatechars:50 }}
+</div>
+{% endif %}
+

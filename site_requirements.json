@@ -75,6 +75,402 @@
         "jexida_dashboard/assistant_app/models.py",
         "jexida_dashboard/assistant_app/management/commands/migrate_from_fastapi.py"
       ]
+    },
+    {
+      "id": "REQ-005",
+      "title": "Self-Extending MCP Platform",
+      "description": "A Django-based system that supports a self-extending MCP (Machine Control Platform). The platform grows over time as users interact with LLMs. If a task is unsupported, the system tracks the request and allows defining new tools. All MCP functionality is consolidated into Django, eliminating the separate FastAPI server.",
+      "acceptance_criteria": [
+        "Tool model stores registered MCP tools with name, description, input schema, and handler path",
+        "ToolRequest model tracks missing tool requests from LLM/user interactions",
+        "ExecutionLog model logs all tool executions with parameters, results, and timing",
+        "Fact model provides persistent memory/knowledge store for learned information",
+        "Django management command 'runmcp' serves MCP protocol via stdio for Cursor integration",
+        "Web UI lists tools, shows pending requests, displays execution logs, and manages facts",
+        "REST API enables programmatic tool execution and fact management",
+        "Tool implementations migrated from mcp_server_files/mcp_tools/ to Django app",
+        "Existing 70+ tools (UniFi, Azure, Synology) registered via seed migration"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/models.py",
+        "jexida_dashboard/mcp_tools_core/views.py",
+        "jexida_dashboard/mcp_tools_core/executor.py",
+        "jexida_dashboard/mcp_tools_core/management/commands/runmcp.py",
+        "jexida_dashboard/mcp_tools_core/tools/",
+        "jexida_dashboard/mcp_tools_core/migrations/0002_seed_tools.py",
+        "jexida_dashboard/templates/mcp_tools/"
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "title": "Modernized Jexida CLI with Clean Architecture",
+      "description": "The jexida_cli has been fully refactored into a clean, modular architecture with separation of UI, commands, and state management. Supports all new MCP capabilities including SSH passthrough, routines, model selection with multiple modes (direct, cascade, route, orchestrate), and structured help system.",
+      "acceptance_criteria": [
+        "CLI organized into ui/, commands/, state/ subpackages",
+        "Frame-based UI with consistent styling and bordered panels",
+        "Command router pattern for clean command dispatch",
+        "Full model selection support with modes (direct, cascade, route, orchestrate)",
+        "MCP client updated to match Django REST API paths (/tools/api/tools/)",
+        "SSH passthrough commands (/shell, /cmd, /ssh)",
+        "Routine management (/routines, /run)",
+        "Structured help system with topic-specific help (/help model, /help ssh, etc.)",
+        "Startup dependency and version checks",
+        "Session persistence with auto-save/auto-load",
+        "Backwards compatibility maintained for existing imports"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "jexida_cli/main.py",
+        "jexida_cli/ui/frame.py",
+        "jexida_cli/ui/renderer.py",
+        "jexida_cli/ui/colors.py",
+        "jexida_cli/state/config.py",
+        "jexida_cli/state/session.py",
+        "jexida_cli/commands/router.py",
+        "jexida_cli/commands/help.py",
+        "jexida_cli/commands/chat.py",
+        "jexida_cli/commands/model.py",
+        "jexida_cli/commands/helpers.py",
+        "jexida_cli/mcp_client.py",
+        "jexida_cli/agent.py",
+        "pyproject.toml"
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "title": "UniFi Real-time Security Monitoring",
+      "description": "The security_monitor_unifi tool provides real-time security monitoring for UniFi networks. It monitors unauthorized device joins, rogue APs, port state changes, authentication failures, and WAN attacks/IPS alerts. Supports both snapshot mode (one-time check) and watch mode (continuous monitoring).",
+      "acceptance_criteria": [
+        "Tool monitors and reports security alerts from UniFi controller",
+        "Tool detects and reports rogue APs",
+        "Tool collects IPS/IDS threat alerts",
+        "Tool tracks authentication failures",
+        "Tool supports snapshot mode for one-time security checks",
+        "Tool supports watch mode for continuous monitoring (future enhancement)",
+        "Tool categorizes alerts by severity (low, medium, high, critical)",
+        "Tool returns structured security monitoring snapshot with all event types",
+        "Tool is registered in the MCP tool registry and accessible via API"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-09",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/unifi/monitoring.py",
+        "register_security_monitor.py"
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "title": "Comprehensive UniFi Security Audit Tool",
+      "description": "The security_audit_unifi tool performs a comprehensive security audit of UniFi network configuration against a 9-section hardening checklist. Evaluates VLAN architecture, WiFi hardening, firewall rules, threat management, DNS/DHCP protection, switch/AP settings, remote access, and backup/drift protection. Generates findings with severity levels, risk scores, and remediation patches.",
+      "acceptance_criteria": [
+        "Tool evaluates Section 1: VLAN & Network Architecture (segmentation, isolation, guest networks)",
+        "Tool evaluates Section 2: WiFi Hardening (WPA3, PMF, legacy protocols, VLAN assignment)",
+        "Tool evaluates Section 3: Firewall Hardening (inter-VLAN rules, allow-all detection, rule validation)",
+        "Tool evaluates Section 4: Threat Management (IDS/IPS enabled, mode, categories)",
+        "Tool evaluates Section 5: DNS/DHCP Protection (UPnP, NAT-PMP, DNS servers)",
+        "Tool evaluates Section 6: Switch, PoE, & AP Hardening (unused ports, PoE config)",
+        "Tool evaluates Section 7: Remote Access & Admin Hardening (SSH, cloud access, MFA)",
+        "Tool evaluates Section 8: Backups & Drift Protection (backup status, config drift)",
+        "Tool generates findings with id, severity, area, check_id, title, description, evidence, recommendation",
+        "Tool calculates risk score with rating (excellent/good/fair/poor/critical)",
+        "Tool generates recommended patches organized by phase (1=low-risk, 2=firewall, 3=VLAN)",
+        "Tool supports 'quick' and 'full' audit depth modes",
+        "Tool uses security_policy.json for configurable security rules"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/unifi/security_audit.py",
+        "jexida_dashboard/mcp_tools_core/tools/unifi/security_policy.json"
+      ]
+    },
+    {
+      "id": "REQ-009",
+      "title": "UniFi Security Hardening Automation Tool",
+      "description": "The security_harden_unifi tool applies security recommendations from the audit in a controlled, phased manner. Supports dry-run mode for previewing changes, phased rollout with connectivity checks, automatic backup creation before changes, and confirmation tokens for safety.",
+      "acceptance_criteria": [
+        "Tool supports dry_run=true mode for previewing changes without applying",
+        "Tool supports dry_run=false with confirmation_token='CONFIRM_HARDEN' for applying changes",
+        "Tool applies changes in phases: Phase 1 (low-risk), Phase 2 (firewall), Phase 3 (VLAN)",
+        "Tool creates pre-hardening backup before applying changes",
+        "Tool performs connectivity check after each phase",
+        "Tool supports stop_on_failure parameter to halt on errors",
+        "Tool can accept a hardening plan from audit or run audit automatically",
+        "Tool applies WiFi changes (security, PMF, VLAN, isolation)",
+        "Tool applies firewall rule changes (create deny rules)",
+        "Tool applies VLAN/network changes (create VLANs)",
+        "Tool applies settings changes (UPnP, threat management)",
+        "Tool returns detailed phase results with applied/failed counts",
+        "Tool provides change preview for dry-run mode"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/unifi/security_harden.py"
+      ]
+    },
+    {
+      "id": "MCP-N8N-001",
+      "title": "n8n Worker Node Deployment and Control",
+      "description": "The MCP must be able to install, configure, and control a dedicated n8n automation node, including workflow management, webhook triggering, system health checks, and SSH-based administrative tasks such as backup and restart.",
+      "acceptance_criteria": [
+        "Deployment script installs Docker and n8n on a worker node",
+        "n8n_deploy_stack MCP tool deploys n8n via SSH with credentials",
+        "n8n_health_check tool verifies n8n is running and healthy",
+        "n8n_list_workflows tool retrieves all workflows from n8n API",
+        "n8n_get_workflow tool retrieves full workflow details with nodes",
+        "n8n_run_workflow tool executes a workflow with optional payload",
+        "n8n_get_execution tool retrieves execution status and results",
+        "n8n_trigger_webhook tool triggers webhook endpoints with payload",
+        "n8n_restart_stack tool restarts Docker container via SSH",
+        "n8n_backup tool creates tarball backup of n8n data",
+        "n8n_restore_backup tool restores from backup file",
+        "CLI commands /n8n health, list, run, exec, webhook, restart, backup work",
+        "Configuration supports environment variables and Django settings"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "scripts/setup_n8n_node.sh",
+        "jexida_dashboard/mcp_tools_core/tools/n8n/__init__.py",
+        "jexida_dashboard/mcp_tools_core/tools/n8n/client.py",
+        "jexida_dashboard/mcp_tools_core/tools/n8n/api.py",
+        "jexida_dashboard/mcp_tools_core/tools/n8n/admin.py",
+        "jexida_dashboard/mcp_tools_core/tools/n8n/deploy.py",
+        "jexida_cli/commands/n8n.py",
+        "jexida_cli/commands/router.py",
+        "scripts/register_n8n_tools.py",
+        "docs/n8n_integration.md"
+      ]
+    },
+    {
+      "id": "DASH-001",
+      "title": "Dashboard overview shows MCP status, nodes, and recent jobs",
+      "description": "Dashboard home page displays MCP connection status with provider info, active worker nodes summary with health indicators, and recent job outcomes with success rate.",
+      "acceptance_criteria": [
+        "MCP Status card shows connection status (connected/disconnected)",
+        "MCP Status shows active tool count and top categories",
+        "MCP Status shows AI provider configuration state",
+        "Worker Nodes card shows active/total count",
+        "Worker Nodes lists recent nodes with status badges",
+        "Jobs card shows running/queued counts and success rate",
+        "Jobs lists recent jobs with status icons"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/templates/dashboard/home.html"
+      ]
+    },
+    {
+      "id": "DASH-002",
+      "title": "Model selection and orchestration mode UI",
+      "description": "Dashboard allows selecting local vs external models and enabling orchestration/cascade modes via forms with HTMX updates.",
+      "acceptance_criteria": [
+        "Models page lists available models (local and cloud)",
+        "Models can be selected via radio button form",
+        "Orchestration modes (direct, cascade, router) selectable",
+        "Configuration is saved to Facts database",
+        "HTMX updates status without page reload",
+        "Current configuration displayed in sidebar"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/dashboard/urls.py",
+        "jexida_dashboard/templates/dashboard/models.html",
+        "jexida_dashboard/templates/dashboard/partials/model_status.html"
+      ]
+    },
+    {
+      "id": "DASH-003",
+      "title": "Tool categories with safe entry points",
+      "description": "Dashboard shows MCP tool categories (Network, Azure, Synology, n8n) with tool counts and links to filtered lists.",
+      "acceptance_criteria": [
+        "Home page shows top tool categories with counts",
+        "Categories link to filtered tool list",
+        "Tool count displayed per category",
+        "Tags used for categorization"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/templates/dashboard/home.html"
+      ]
+    },
+    {
+      "id": "DASH-004",
+      "title": "Network Hardening section with evaluations",
+      "description": "Dashboard surfaces UniFi security evaluation tools with run buttons, last results, and human-readable reports for all 8 hardening sections.",
+      "acceptance_criteria": [
+        "Network Hardening page lists all 8 evaluation sections",
+        "Each evaluation shows last run status (pass/findings/never)",
+        "Run button triggers security_audit_unifi tool via HTMX",
+        "Results displayed inline with finding count",
+        "Run All button executes full security audit",
+        "Safe operations noted (read-only evaluations)"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/dashboard/urls.py",
+        "jexida_dashboard/templates/dashboard/network_hardening.html",
+        "jexida_dashboard/templates/dashboard/partials/evaluation_result.html"
+      ]
+    },
+    {
+      "id": "DASH-005",
+      "title": "Worker node health in dashboard",
+      "description": "Dashboard shows worker nodes (e.g., 192.168.0.66) with health/status indicators and links to detail pages.",
+      "acceptance_criteria": [
+        "Home page shows node summary with active/total counts",
+        "Recent nodes listed with name, host, and status badge",
+        "Links to node detail page",
+        "Node status (active/inactive) displayed"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/dashboard/views.py",
+        "jexida_dashboard/templates/dashboard/home.html"
+      ]
+    },
+    {
+      "id": "DASH-006",
+      "title": "AI Assistant connects to MCP tools",
+      "description": "The web dashboard AI Assistant has context on all MCP tools from the database and can trigger them via chat. Safe tools execute automatically; dangerous tools show confirmation UI.",
+      "acceptance_criteria": [
+        "Assistant API loads tool definitions from Tool model",
+        "Tool definitions injected into LLM context",
+        "Safe tools (list, get, check) execute automatically",
+        "Dangerous tools (apply, delete, harden) require confirmation",
+        "Confirmation modal shows tool name, parameters, risk level",
+        "User can confirm or cancel tool execution",
+        "Tool results displayed in chat with formatting",
+        "Status indicator shows available tool count"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-10",
+      "implemented_in": [
+        "jexida_dashboard/assistant_app/mcp_tools_bridge.py",
+        "jexida_dashboard/assistant_app/api_views.py",
+        "jexida_dashboard/assistant_app/api_urls.py",
+        "jexida_dashboard/templates/assistant/chat.html",
+        "jexida_dashboard/templates/assistant/partials/tool_confirmation.html"
+      ]
+    },
+    {
+      "id": "MCP-AZURE-001",
+      "title": "Azure SDK MCP Tools for Infrastructure Automation",
+      "description": "Comprehensive Azure Management API tools using Azure SDK libraries. Provides tools for subscriptions, resource groups, ARM deployments, App Service, Storage, SQL, monitoring, and cost management. Uses DefaultAzureCredential for flexible authentication (service principal, managed identity, CLI). Includes Phase 2 stubs for network, security, compute, and Kubernetes operations.",
+      "acceptance_criteria": [
+        "Authentication module provides get_azure_credential() with DefaultAzureCredential",
+        "Core tools: azure_core_get_connection_info, list_subscriptions, list_locations, list_resource_groups, create/delete_resource_group",
+        "Resources tools: azure_resources_get_resource, delete_resource, list_by_type, search (Resource Graph)",
+        "Deployments tools: azure_deployments_deploy_to_resource_group/subscription, get_status, list",
+        "App Platform tools: azure_app_platform_create_app_service_plan, create_web_app, update_settings, restart, create_function_app",
+        "Data tools: azure_data_create_storage_account, create_blob_container, create_sql_server, create_sql_database, set_firewall_rule",
+        "Monitoring tools: azure_monitoring_get_metrics, query_logs, list_alerts",
+        "Cost tools: azure_cost_get_summary (SDK-based), azure_cost_get_top_cost_drivers",
+        "Phase 2 stubs defined for network, security, compute, kubernetes with NotImplementedError",
+        "Consistent error handling with AzureError, AzureAuthError, AzureNotFoundError, etc.",
+        "Destructive operations require force=true parameter",
+        "CLI tools (azure_cli_run) retained as fallback",
+        "Documentation at docs/azure_mcp_tools.md",
+        "Unit tests at tests/test_azure_tools.py with mocked SDK clients",
+        "Registration script at scripts/register_azure_sdk_tools.py"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-11",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/azure/auth.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/core.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/resources.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/deployments.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/app_platform.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/data.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/monitoring.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/cost.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/network.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/security.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/compute.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/kubernetes.py",
+        "jexida_dashboard/mcp_tools_core/tools/azure/__init__.py",
+        "scripts/register_azure_sdk_tools.py",
+        "docs/azure_mcp_tools.md",
+        "tests/test_azure_tools.py"
+      ]
+    },
+    {
+      "id": "MCP-DISCORD-001",
+      "title": "Discord Bot Integration",
+      "description": "MCP tools for Discord operations including sending messages, creating channels, managing roles, and bootstrapping server structure from YAML configuration. Uses Discord REST API with bot token authentication. Environment-based configuration with no secrets in code.",
+      "acceptance_criteria": [
+        "DiscordConfig class loads bot token and guild ID from environment or secrets store",
+        "DiscordClient provides httpx-based REST API wrapper with Bot token auth",
+        "discord_get_guild_info tool retrieves server information for connectivity testing",
+        "discord_send_message tool sends messages with optional embeds to channels",
+        "discord_create_text_channel tool creates text channels under optional categories",
+        "discord_create_category_channel tool creates category channels",
+        "discord_ensure_role tool creates or returns existing roles (idempotent)",
+        "discord_bootstrap_server tool reads YAML spec and ensures server structure matches",
+        "Bootstrap supports categories, channels, and roles with dry-run mode",
+        "CLI commands /discord test, /discord bootstrap work",
+        "Configuration fails fast with clear error if DISCORD_BOT_TOKEN missing",
+        "Bot token never logged or exposed in outputs",
+        "Unit tests mock httpx responses for Discord API"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-11",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/discord/__init__.py",
+        "jexida_dashboard/mcp_tools_core/tools/discord/config.py",
+        "jexida_dashboard/mcp_tools_core/tools/discord/client.py",
+        "jexida_dashboard/mcp_tools_core/tools/discord/api.py",
+        "jexida_dashboard/mcp_tools_core/tools/discord/bootstrap.py",
+        "jexida_cli/commands/discord.py",
+        "jexida_cli/commands/router.py",
+        "scripts/register_discord_tools.py",
+        "config/discord_server.yml",
+        "tests/test_discord_tools.py"
+      ]
+    },
+    {
+      "id": "MCP-PATREON-001",
+      "title": "Patreon Integration MCP Tools",
+      "description": "MCP tools for reading Patreon data including creator/campaign info, tiers, patrons, and export capabilities. Supports both quick setup (creator access token) and production (OAuth2 refresh flow). Enables automation workflows for patron management, email lists, and Discord role sync.",
+      "acceptance_criteria": [
+        "PatreonClient class handles OAuth2 and access token authentication",
+        "PatreonConfig loads credentials from environment or secrets store",
+        "patreon_get_creator tool returns creator and primary campaign information",
+        "patreon_get_tiers tool returns all tiers for a campaign with details",
+        "patreon_get_patrons tool returns patrons with optional status and tier filtering",
+        "patreon_get_patron tool returns detailed info for a specific patron",
+        "patreon_export_patrons tool exports patron data as JSON or CSV",
+        "Automatic token refresh when OAuth2 credentials are configured",
+        "Pagination handled for large patron lists",
+        "Error handling with PatreonError, PatreonAuthError, PatreonConfigError classes",
+        "Configuration via PATREON_ACCESS_TOKEN, PATREON_CLIENT_ID, PATREON_CLIENT_SECRET, PATREON_REFRESH_TOKEN",
+        "Optional PATREON_CREATOR_CAMPAIGN_ID for default campaign",
+        "Documentation at docs/patreon_integration.md with OAuth2 setup walkthrough",
+        "Registration script at scripts/register_patreon_tools.py"
+      ],
+      "status": "implemented",
+      "created_at": "2024-12-11",
+      "implemented_in": [
+        "jexida_dashboard/mcp_tools_core/tools/patreon/__init__.py",
+        "jexida_dashboard/mcp_tools_core/tools/patreon/client.py",
+        "jexida_dashboard/mcp_tools_core/tools/patreon/tools.py",
+        "scripts/register_patreon_tools.py",
+        "docs/patreon_integration.md"
+      ]
     }
   ]
 }

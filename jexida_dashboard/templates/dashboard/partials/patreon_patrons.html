@@ -1,0 +1,98 @@
+{% if success %}
+{% if patrons %}
+<div class="p-3 border-bottom bg-dark">
+    <div class="d-flex justify-content-between align-items-center">
+        <span>
+            <strong>{{ count }}</strong> patron{{ count|pluralize }}
+        </span>
+        <span style="color: #3fb950;">
+            Monthly: <strong>${{ total_monthly_cents|floatformat:0 }}</strong>
+            <script>
+                (function() {
+                    var el = document.currentScript.previousElementSibling;
+                    el.textContent = "$" + ({{ total_monthly_cents }} / 100).toFixed(2);
+                })();
+            </script>
+        </span>
+    </div>
+</div>
+<table class="table table-hover mb-0">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Tier</th>
+            <th>Pledge</th>
+            <th>Status</th>
+            <th>Lifetime</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for patron in patrons %}
+        <tr>
+            <td>
+                <strong>{{ patron.full_name|default:"Anonymous" }}</strong>
+            </td>
+            <td>
+                {% if patron.email %}
+                <a href="mailto:{{ patron.email }}">{{ patron.email }}</a>
+                {% else %}
+                <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if patron.tier_name %}
+                <span class="badge" style="background: #f96854;">{{ patron.tier_name }}</span>
+                {% else %}
+                <span class="text-muted">None</span>
+                {% endif %}
+            </td>
+            <td>
+                <span data-cents="{{ patron.currently_entitled_amount_cents }}">
+                    ${{ patron.currently_entitled_amount_cents|floatformat:0 }}
+                </span>
+                <script>
+                    (function() {
+                        var el = document.currentScript.previousElementSibling;
+                        var cents = parseInt(el.dataset.cents) || 0;
+                        el.textContent = "$" + (cents / 100).toFixed(2);
+                    })();
+                </script>
+            </td>
+            <td>
+                {% if patron.patron_status == "active_patron" %}
+                <span class="badge bg-success">Active</span>
+                {% elif patron.patron_status == "declined_patron" %}
+                <span class="badge bg-warning text-dark">Declined</span>
+                {% elif patron.patron_status == "former_patron" %}
+                <span class="badge bg-secondary">Former</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ patron.patron_status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <span class="text-muted" data-cents="{{ patron.lifetime_support_cents }}">
+                    ${{ patron.lifetime_support_cents|floatformat:0 }}
+                </span>
+                <script>
+                    (function() {
+                        var el = document.currentScript.previousElementSibling;
+                        var cents = parseInt(el.dataset.cents) || 0;
+                        el.textContent = "$" + (cents / 100).toFixed(2);
+                    })();
+                </script>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted text-center py-4 mb-0">No patrons found matching the filter</p>
+{% endif %}
+{% else %}
+<div class="alert alert-danger m-3">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    {{ error|default:"Failed to load patrons" }}
+</div>
+{% endif %}
+

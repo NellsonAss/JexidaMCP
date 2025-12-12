@@ -2,6 +2,7 @@
 
 Contains MCP tools for managing and hardening UniFi networks:
 - unifi_list_devices: Inventory all UniFi devices
+- unifi_list_clients: List connected WiFi and wired clients
 - unifi_get_security_settings: Get security configuration
 - unifi_apply_changes: Apply configuration changes with dry-run support
 - network_scan_local: Run nmap scans from MCP server
@@ -11,6 +12,7 @@ Contains MCP tools for managing and hardening UniFi networks:
 
 # Import tools to trigger registration
 from . import devices
+from . import clients
 from . import security
 from . import changes
 from . import network_scan
@@ -29,6 +31,7 @@ from .client import (
 __all__ = [
     # Tools modules
     "devices",
+    "clients",
     "security",
     "changes",
     "network_scan",

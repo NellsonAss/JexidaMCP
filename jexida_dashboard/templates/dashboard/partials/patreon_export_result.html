@@ -1,0 +1,12 @@
+{% if success %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle me-2"></i>
+    Export completed successfully!
+</div>
+{% else %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    {{ error|default:"Export failed" }}
+</div>
+{% endif %}
+

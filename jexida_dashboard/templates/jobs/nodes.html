@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-hdd-stack me-2"></i>Worker Nodes</h1>
+        <p class="text-muted">Remote servers available for job execution</p>
+    </div>
+    <div>
+        <a href="{% url 'jobs:list' %}" class="btn btn-outline-primary">
+            <i class="bi bi-terminal me-1"></i>View Jobs
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for node in nodes %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 {% if not node.is_active %}opacity-50{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-hdd me-2"></i>{{ node.name }}
+                </h5>
+                {% if node.is_active %}
+                <span class="badge bg-success">Active</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-3">
+                    <tr>
+                        <td class="text-muted" style="width: 80px;">Host</td>
+                        <td><code>{{ node.host }}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">User</td>
+                        <td>{{ node.user }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Port</td>
+                        <td>{{ node.ssh_port }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Last Seen</td>
+                        <td>
+                            {% if node.last_seen %}
+                            {{ node.last_seen|timesince }} ago
+                            {% else %}
+                            <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                
+                {% if node.tags %}
+                <div class="mb-2">
+                    {% for tag in node.get_tags_list %}
+                    <span class="badge bg-primary me-1">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'jobs:node_detail' node.name %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-info-circle me-1"></i>Details
+                    </a>
+                    <button 
+                        class="btn btn-sm btn-outline-success"
+                        hx-get="{% url 'jobs:node_check' node.name %}"
+                        hx-target="#check-result-{{ node.pk }}"
+                        hx-indicator="#spinner-{{ node.pk }}"
+                    >
+                        <span id="spinner-{{ node.pk }}" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                        <i class="bi bi-wifi me-1"></i>Check
+                    </button>
+                </div>
+                <div id="check-result-{{ node.pk }}" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            No worker nodes configured. Add a worker node using the Django admin or database seeding.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

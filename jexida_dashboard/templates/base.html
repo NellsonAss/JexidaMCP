@@ -208,6 +208,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if page_title == 'MCP Tools' %}active{% endif %}" href="{% url 'mcp_tools:list' %}">
+                            <i class="bi bi-tools me-1"></i>Tools
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if page_title == 'Secrets' %}active{% endif %}" href="{% url 'secrets:list' %}">
                             <i class="bi bi-key me-1"></i>Secrets
                         </a>
@@ -221,6 +226,43 @@
                         <a class="nav-link {% if page_title == 'AI Assistant' %}active{% endif %}" href="{% url 'assistant:chat' %}">
                             <i class="bi bi-robot me-1"></i>Assistant
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'Job' in page_title or 'Node' in page_title %}active{% endif %}" href="{% url 'jobs:list' %}">
+                            <i class="bi bi-terminal me-1"></i>Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page_title == 'Azure' or 'App Environment' in page_title or 'Data Services' in page_title or 'Deploy Template' in page_title %}active{% endif %}" href="{% url 'dashboard:azure' %}">
+                            <i class="bi bi-cloud me-1" style="color: #0078d4;"></i>Azure
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page_title == 'Discord' %}active{% endif %}" href="{% url 'dashboard:discord' %}">
+                            <i class="bi bi-discord me-1" style="color: #5865F2;"></i>Discord
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page_title == 'Patreon' %}active{% endif %}" href="{% url 'dashboard:patreon' %}">
+                            <i class="bi bi-heart-fill me-1" style="color: #f96854;"></i>Patreon
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if page_title == 'Network Hardening' or page_title == 'Models & Orchestration' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear me-1"></i>Config
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dashboard:models' %}">
+                                    <i class="bi bi-cpu me-2"></i>Models
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dashboard:network_hardening' %}">
+                                    <i class="bi bi-shield-check me-2"></i>Network Hardening
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
                 <ul class="navbar-nav">

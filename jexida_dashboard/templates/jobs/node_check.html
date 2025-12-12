@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'jobs:nodes' %}">Worker Nodes</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'jobs:node_detail' node.name %}">{{ node.name }}</a></li>
+            <li class="breadcrumb-item active">Connectivity Check</li>
+        </ol>
+    </nav>
+    <h1><i class="bi bi-wifi me-2"></i>Connectivity Check: {{ node.name }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Check Results</span>
+                {% if result.reachable %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Reachable</span>
+                {% else %}
+                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Unreachable</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td class="text-muted" style="width: 140px;">Status</td>
+                        <td>
+                            {% if result.reachable %}
+                            <span class="text-success"><i class="bi bi-check-circle me-1"></i>Connected</span>
+                            {% else %}
+                            <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Latency</td>
+                        <td>{{ result.latency_ms }}ms</td>
+                    </tr>
+                    {% if result.error %}
+                    <tr>
+                        <td class="text-muted">Error</td>
+                        <td class="text-danger">{{ result.error }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+                
+                {% if result.stdout %}
+                <h6 class="mt-4">Output</h6>
+                <pre class="p-3 bg-dark rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ result.stdout }}</code></pre>
+                {% endif %}
+                
+                {% if result.stderr %}
+                <h6 class="mt-4">Errors</h6>
+                <pre class="p-3 bg-dark rounded text-danger" style="max-height: 200px; overflow-y: auto;"><code>{{ result.stderr }}</code></pre>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'jobs:node_detail' node.name %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Node
+    </a>
+</div>
+{% endblock %}
+

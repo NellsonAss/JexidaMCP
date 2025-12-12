@@ -1,0 +1,65 @@
+# Discord Server Bootstrap Configuration
+# ======================================
+#
+# This file defines the structure for a Discord server managed by JexidaMCP.
+# Use the bootstrap tool to ensure this structure exists:
+#   /discord bootstrap
+#   /discord bootstrap --dry-run  (preview only)
+#
+# Environment variable substitution is supported using ${VAR_NAME} syntax.
+
+# The guild (server) ID to bootstrap
+# If not specified here, uses DISCORD_GUILD_ID from environment
+guild_id: ${DISCORD_GUILD_ID}
+
+# Categories and their channels
+categories:
+  - name: "Info"
+    channels:
+      - name: "announcements"
+        topic: "Official updates from Nellson Associates / Jexida / Dynamic Discoveries"
+      - name: "rules"
+        topic: "Community guidelines and expectations"
+
+  - name: "Community"
+    channels:
+      - name: "general-chat"
+        topic: "General conversation and questions"
+      - name: "tech-lab"
+        topic: "Jexida / MCP / tooling chat - technical discussions"
+      - name: "education-lab"
+        topic: "Dynamic Discoveries & curriculum talk"
+      - name: "introductions"
+        topic: "Say hello and introduce yourself to the community"
+
+  - name: "Operations"
+    channels:
+      - name: "na-internal"
+        topic: "Internal notes for Nellson Associates"
+        internal: true  # Flag for future permissions restriction
+      - name: "mcp-logs"
+        topic: "Automated messages and logs from MCP"
+        internal: true
+      - name: "bot-commands"
+        topic: "Channel for bot commands and testing"
+        internal: true
+
+# Roles to ensure exist
+# Note: Role permissions are not configured in Phase 1
+roles:
+  - name: "Admin"
+    hoist: true     # Display separately in member list
+    # color: 15158332  # Optional: Color as integer (Discord color codes)
+
+  - name: "Core Team"
+    hoist: true
+
+  - name: "Moderator"
+    hoist: true
+
+  - name: "Supporter"
+    hoist: false
+
+  - name: "Guest"
+    hoist: false
+

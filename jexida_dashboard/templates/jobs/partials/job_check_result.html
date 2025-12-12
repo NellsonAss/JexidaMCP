@@ -1,0 +1,54 @@
+<div id="job-check-result">
+    {% if status_updated and update_message %}
+    <div class="alert alert-warning mb-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>Status Updated:</strong> {{ update_message }}
+    </div>
+    {% endif %}
+
+    {% if connectivity_result.reachable %}
+    <div class="alert alert-success mb-2">
+        <i class="bi bi-check-circle me-1"></i>
+        <strong>Node is reachable</strong> ({{ connectivity_result.latency_ms }}ms)
+    </div>
+    {% else %}
+    <div class="alert alert-danger mb-2">
+        <i class="bi bi-x-circle me-1"></i>
+        <strong>Node is unreachable</strong>
+        {% if connectivity_result.error %}
+        <div class="small mt-1">{{ connectivity_result.error|truncatechars:200 }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if connectivity_result.reachable and process_check %}
+    <div class="alert {% if process_check.found %}alert-warning{% else %}alert-info{% endif %} mb-2">
+        <i class="bi bi-{% if process_check.found %}exclamation-triangle{% else %}info-circle{% endif %} me-1"></i>
+        <strong>Process check:</strong>
+        {% if process_check.found %}
+        Process matching command may still be running
+        {% else %}
+        No matching process found (job may have completed)
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="alert alert-secondary mb-0 py-2">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Current job status:</strong> 
+        {% if job.status == 'succeeded' %}
+        <span class="badge bg-success">Succeeded</span>
+        {% elif job.status == 'failed' %}
+        <span class="badge bg-danger">Failed</span>
+        {% elif job.status == 'running' %}
+        <span class="badge bg-primary">Running</span>
+        {% elif job.status == 'lost' %}
+        <span class="badge bg-warning text-dark">Lost</span>
+        {% else %}
+        <span class="badge bg-secondary">Queued</span>
+        {% endif %}
+        <br>
+        <small class="text-muted">Last updated: {{ job.updated_at|date:"M d, H:i:s" }}</small>
+    </div>
+</div>
+

@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     "dashboard",
     "secrets_app",
     "assistant_app",
+    "mcp_tools_core",
+    "jobs_app",
 ]
 
 MIDDLEWARE = [

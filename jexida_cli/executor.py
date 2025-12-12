@@ -1,4 +1,4 @@
-"""Command executor abstraction for local and SSH execution."""
+"""Command executor abstraction for local, SSH, and MCP execution."""
 
 import subprocess
 import json
@@ -15,11 +15,10 @@ class Executor(ABC):
 
     @abstractmethod
     def run(self, command: str) -> Tuple[int, str, str]:
-        """
-        Execute a shell command.
+        """Execute a command.
 
         Args:
-            command: Shell command to execute
+            command: Command to execute
 
         Returns:
             Tuple of (exit_code, stdout, stderr)
@@ -31,8 +30,7 @@ class LocalExecutor(Executor):
     """Executes commands on the local machine."""
 
     def __init__(self, timeout: int = 300):
-        """
-        Initialize the local executor.
+        """Initialize the local executor.
 
         Args:
             timeout: Command timeout in seconds (default: 5 minutes)
@@ -40,8 +38,7 @@ class LocalExecutor(Executor):
         self.timeout = timeout
 
     def run(self, command: str) -> Tuple[int, str, str]:
-        """
-        Execute a shell command on the local machine.
+        """Execute a shell command on the local machine.
 
         Args:
             command: Shell command to execute
@@ -73,8 +70,7 @@ class SSHExecutor(Executor):
     """Executes commands on a remote server via SSH."""
 
     def __init__(self, ssh_client: "SSHClient"):
-        """
-        Initialize the SSH executor.
+        """Initialize the SSH executor.
 
         Args:
             ssh_client: SSHClient instance for remote execution
@@ -82,8 +78,7 @@ class SSHExecutor(Executor):
         self.ssh_client = ssh_client
 
     def run(self, command: str) -> Tuple[int, str, str]:
-        """
-        Execute a shell command on the remote server via SSH.
+        """Execute a shell command on the remote server via SSH.
 
         Args:
             command: Shell command to execute
@@ -95,8 +90,7 @@ class SSHExecutor(Executor):
         return (exit_code, stdout, stderr)
 
     def open_shell(self) -> None:
-        """
-        Open an interactive SSH shell session.
+        """Open an interactive SSH shell session.
 
         Delegates to the underlying SSHClient's open_shell method.
         This attaches to the user's TTY for an interactive session.
@@ -108,8 +102,7 @@ class MCPExecutor(Executor):
     """Executes tools on the Jexida MCP server."""
 
     def __init__(self, mcp_client: "MCPClient"):
-        """
-        Initialize the MCP executor.
+        """Initialize the MCP executor.
 
         Args:
             mcp_client: MCPClient instance for API communication
@@ -117,8 +110,7 @@ class MCPExecutor(Executor):
         self.mcp_client = mcp_client
 
     def run(self, command: str) -> Tuple[int, str, str]:
-        """
-        Execute a tool on the MCP server.
+        """Execute a tool on the MCP server.
 
         The command is expected to be a JSON string containing
         'tool_name' and 'parameters'.
@@ -140,11 +132,9 @@ class MCPExecutor(Executor):
             result = self.mcp_client.execute_tool(tool_name, parameters)
 
             if result.get("success", False):
-                # Successful execution, result is in stdout
                 stdout_content = json.dumps(result, indent=2, ensure_ascii=False)
                 return (0, stdout_content, "")
             else:
-                # Failed execution, error details in stderr
                 stderr_content = json.dumps(result, indent=2, ensure_ascii=False)
                 return (1, "", stderr_content)
 
@@ -152,14 +142,3 @@ class MCPExecutor(Executor):
             return (1, "", "MCPExecutor error: Invalid JSON command.")
         except Exception as e:
             return (1, "", f"MCPExecutor unexpected error: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-

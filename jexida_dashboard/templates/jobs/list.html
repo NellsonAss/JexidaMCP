@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-terminal me-2"></i>Jobs</h1>
+        <p class="text-muted">View and manage jobs on worker nodes</p>
+    </div>
+    <div>
+        <a href="{% url 'jobs:nodes' %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-hdd-stack me-1"></i>Worker Nodes
+        </a>
+        <a href="{% url 'jobs:submit' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Submit Job
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'jobs:list' %}{% if filter_status %}?status={{ filter_status }}{% endif %}">All Nodes</option>
+            {% for node in nodes %}
+            <option value="{% url 'jobs:list' %}?node={{ node.name }}{% if filter_status %}&status={{ filter_status }}{% endif %}" 
+                    {% if filter_node == node.name %}selected{% endif %}>{{ node.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" onchange="window.location.href=this.value">
+            <option value="{% url 'jobs:list' %}{% if filter_node %}?node={{ filter_node }}{% endif %}">All Status</option>
+            <option value="{% url 'jobs:list' %}?status=queued{% if filter_node %}&node={{ filter_node }}{% endif %}" 
+                    {% if filter_status == 'queued' %}selected{% endif %}>Queued</option>
+            <option value="{% url 'jobs:list' %}?status=running{% if filter_node %}&node={{ filter_node }}{% endif %}" 
+                    {% if filter_status == 'running' %}selected{% endif %}>Running</option>
+            <option value="{% url 'jobs:list' %}?status=succeeded{% if filter_node %}&node={{ filter_node }}{% endif %}" 
+                    {% if filter_status == 'succeeded' %}selected{% endif %}>Succeeded</option>
+            <option value="{% url 'jobs:list' %}?status=failed{% if filter_node %}&node={{ filter_node }}{% endif %}" 
+                    {% if filter_status == 'failed' %}selected{% endif %}>Failed</option>
+        </select>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-outline-secondary" 
+                hx-get="{% url 'jobs:jobs_table_partial' %}{% if filter_node %}?node={{ filter_node }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"
+                hx-target="#jobs-table-body"
+                hx-indicator="#refresh-spinner">
+            <span id="refresh-spinner" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Jobs Table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                    <tr>
+                        <th style="width: 120px;">ID</th>
+                        <th style="width: 140px;">Node</th>
+                        <th>Description / Command</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 100px;">Exit Code</th>
+                        <th style="width: 100px;">Duration</th>
+                        <th style="width: 160px;">Created</th>
+                    </tr>
+            </thead>
+            <tbody id="jobs-table-body">
+                {% for job in jobs %}
+                <tr onclick="window.location='{% url 'jobs:detail' job.id %}'" style="cursor: pointer;">
+                    <td><code>{{ job.id|truncatechars:10 }}</code></td>
+                    <td>
+                        <a href="{% url 'jobs:node_detail' job.target_node.name %}" onclick="event.stopPropagation();">
+                            {{ job.target_node.name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if job.description %}
+                        <div class="fw-bold mb-1">{{ job.description }}</div>
+                        <code class="text-truncate d-inline-block text-muted small" style="max-width: 300px;">{{ job.command|truncatechars:60 }}</code>
+                        {% else %}
+                        <code class="text-truncate d-inline-block" style="max-width: 300px;">{{ job.command|truncatechars:60 }}</code>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.status == 'succeeded' %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Succeeded</span>
+                        {% elif job.status == 'failed' %}
+                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>
+                        {% elif job.status == 'running' %}
+                        <span class="badge bg-primary"><i class="bi bi-hourglass-split me-1"></i>Running</span>
+                        {% elif job.status == 'lost' %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Lost</span>
+                        {% else %}
+                        <span class="badge bg-secondary"><i class="bi bi-clock me-1"></i>Queued</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.exit_code is not None %}
+                        <code class="{% if job.exit_code == 0 %}text-success{% else %}text-danger{% endif %}">{{ job.exit_code }}</code>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.duration_ms %}
+                        {{ job.duration_ms }}ms
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">{{ job.created_at|date:"M d, H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                        No jobs found. <a href="{% url 'jobs:submit' %}">Submit your first job</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,21 @@
+<tr>
+    <td><code>{{ fact.key }}</code></td>
+    <td>
+        <button 
+            class="btn btn-sm btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#factModal{{ fact.id }}"
+        >
+            <i class="bi bi-eye me-1"></i>View
+        </button>
+    </td>
+    <td>
+        {% if fact.source %}
+        <span class="badge bg-info">{{ fact.source }}</span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>{{ fact.updated_at|date:"M d, H:i" }}</td>
+</tr>
+

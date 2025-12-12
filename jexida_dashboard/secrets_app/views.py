@@ -33,6 +33,7 @@ def secret_create(request):
         "azure": ["tenant_id", "client_id", "client_secret", "subscription_id"],
         "unifi": ["controller_url", "username", "password", "site"],
         "synology": ["url", "username", "password"],
+        "n8n": ["url", "username", "password", "encryption_key"],
         "generic": [],
     }
     

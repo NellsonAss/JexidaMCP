@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:azure' %}">Azure</a></li>
+            <li class="breadcrumb-item active">Deploy Template</li>
+        </ol>
+    </nav>
+    <h1><i class="bi bi-file-earmark-code me-2" style="color: #3fb950;"></i>Deploy Template</h1>
+    <p class="text-muted">Deploy an ARM/Bicep template to a resource group</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-body">
+                <form 
+                    hx-post="{% url 'dashboard:azure_deploy' %}"
+                    hx-target="#result"
+                    hx-swap="innerHTML"
+                    hx-indicator="#loading"
+                >
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="resource_group" class="form-label">Resource Group <span class="text-danger">*</span></label>
+                            {% if resource_groups %}
+                            <select class="form-select" id="resource_group" name="resource_group" required>
+                                <option value="">Select a resource group...</option>
+                                {% for rg in resource_groups %}
+                                <option value="{{ rg.name }}">{{ rg.name }} ({{ rg.location }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="resource_group" name="resource_group" 
+                                   placeholder="e.g., rg-myapp-dev" required>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="deployment_name" class="form-label">Deployment Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="deployment_name" name="deployment_name" 
+                                   placeholder="e.g., deploy-webapp-001" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="template_source" class="form-label">ARM Template (JSON) <span class="text-danger">*</span></label>
+                        <textarea class="form-control font-monospace" id="template_source" name="template_source" 
+                                  rows="15" placeholder='{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "resources": []
+}' required></textarea>
+                        <div class="form-text">Paste your ARM template JSON here</div>
+                    </div>
+                    
+                    <!-- Parameters Section -->
+                    <div class="mb-3">
+                        <label class="form-label">Template Parameters <span class="text-muted">(optional)</span></label>
+                        <div id="params-container">
+                            <div class="row mb-2">
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" name="param_key" placeholder="Parameter name">
+                                </div>
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" name="param_value" placeholder="Value">
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addParamRow()">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'dashboard:azure' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <span id="loading" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                            <i class="bi bi-rocket-takeoff me-1"></i>Deploy Template
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="result" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addParamRow() {
+    const container = document.getElementById('params-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2';
+    newRow.innerHTML = `
+        <div class="col-5">
+            <input type="text" class="form-control form-control-sm" name="param_key" placeholder="Parameter name">
+        </div>
+        <div class="col-5">
+            <input type="text" class="form-control form-control-sm" name="param_value" placeholder="Value">
+        </div>
+        <div class="col-2">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+}
+</script>
+{% endblock %}
+
